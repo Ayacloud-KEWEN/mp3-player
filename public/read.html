@@ -157,7 +157,8 @@ article.side{max-width:1180px}
 }
 @media (max-width: 760px){
   body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
-  aside{max-height:30vh;border-right:0;border-bottom:1px solid var(--line)}
+  aside{max-height:34vh;overflow-y:auto;border-right:0;border-bottom:1px solid var(--line)}
+  aside .lib{flex:none;overflow:visible}
   .pa{grid-template-columns:minmax(0,1fr);gap:6px}
   .pa .z{border-left:0;padding-left:0}
 }
