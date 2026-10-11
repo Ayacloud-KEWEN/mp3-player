@@ -6,3 +6,4 @@ nvidia-cudnn-cu12==9.27.0.42
 transformers==5.19.0
 sentencepiece==0.2.2
 sacremoses==0.2.0
+imageio-ffmpeg==0.6.0

@@ -6,6 +6,22 @@
 import argparse, os, re, sys
 import models  # 设置模型目录与 CUDA 路径
 from faster_whisper import WhisperModel
+import shutil, subprocess
+import numpy as np
+
+
+def load_audio(path):
+    """用 ffmpeg 解码为 16kHz 单声道。
+    播客常把广告和正文两个 MP3 直接拼接，PyAV 读到第二段的文件头就停了；ffmpeg 能跳过并解完整个文件。"""
+    exe = shutil.which("ffmpeg")
+    if not exe:
+        import imageio_ffmpeg
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+    out = subprocess.run([exe, "-nostdin", "-v", "quiet", "-err_detect", "ignore_err", "-i", path,
+                          "-ac", "1", "-ar", "16000", "-f", "s16le", "-"], capture_output=True).stdout
+    if not out:
+        raise RuntimeError(f"Impossible de décoder {path}")
+    return np.frombuffer(out, np.int16).astype(np.float32) / 32768.0
 
 AUDIO = {".mp3", ".m4a", ".aac", ".ogg", ".opus", ".wav", ".flac", ".webm"}
 
@@ -109,7 +125,7 @@ def main():
                          compute_type="int8" if a.cpu else "float16")
     for i, (src, srt) in enumerate(files, 1):
         print(f"[{i}/{len(files)}] {os.path.basename(src)}", flush=True)
-        segs, info = model.transcribe(src, language=a.lang, vad_filter=True, beam_size=5,
+        segs, info = model.transcribe(load_audio(src), language=a.lang, vad_filter=True, beam_size=5,
                                       condition_on_previous_text=True, word_timestamps=True,
                                       initial_prompt=PROMPT.get(a.lang or '', None))
         words, last = [], -10
