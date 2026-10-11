@@ -1,0 +1,15 @@
+# 本地配置
+.env
+.claude/
+# 电脑版工具：Python 环境与模型（由 tools/setup.bat 生成 / 首次使用时下载）
+tools/.venv/
+tools/models/
+__pycache__/
+*.part
+# 音频与字幕数据
+fry1/
+*.mp3
+*.m4a
+*.srt
+*.vtt
+*.lrc

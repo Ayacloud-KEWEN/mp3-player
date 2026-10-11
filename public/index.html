@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3ede1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Lyra · Écoute</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3ede1; --bg2:#ebe3d3; --card:#faf6ee; --ink:#2b241c; --ink2:#6f6253; --ink3:#a59886;
+  --line:#d8cdb8; --accent:#9c4a2f; --accent-ink:#fff8ef; --gold:#a8843d; --hl:rgba(168,132,61,.14);
+  --shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 6px 20px -12px rgba(60,40,20,.35);
+  --serif:"Cormorant Garamond","Noto Serif SC","Songti SC","STSong",Georgia,serif;
+  --caps:"Cinzel","Cormorant Garamond",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16130f; --bg2:#1d1914; --card:#211c16; --ink:#ece3d2; --ink2:#b3a68f; --ink3:#77695a;
+    --line:#3a3128; --accent:#c9764f; --accent-ink:#1a120c; --gold:#c9a45c; --hl:rgba(201,164,92,.13);
+    --shadow:0 6px 24px -14px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16130f; --bg2:#1d1914; --card:#211c16; --ink:#ece3d2; --ink2:#b3a68f; --ink3:#77695a;
+  --line:#3a3128; --accent:#c9764f; --accent-ink:#1a120c; --gold:#c9a45c; --hl:rgba(201,164,92,.13);
+  --shadow:0 6px 24px -14px rgba(0,0,0,.8);
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);font-size:17px;
+  display:flex;flex-direction:column;height:100dvh;overflow:hidden;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+svg{display:block}
+
+/* 希腊回纹饰带 */
+.meander{height:10px;opacity:.55;color:var(--gold);
+  background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10' viewBox='0 0 20 10'%3E%3Cpath d='M0 9.5h20M0 .5h20M1 9V3h6v4H4V5' fill='none' stroke='black' stroke-width='1'/%3E%3Cpath d='M11 1v6h6V3h-3v2' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10' viewBox='0 0 20 10'%3E%3Cpath d='M0 9.5h20M0 .5h20M1 9V3h6v4H4V5' fill='none' stroke='black' stroke-width='1'/%3E%3Cpath d='M11 1v6h6V3h-3v2' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x}
+
+header{display:flex;align-items:center;gap:12px;padding:12px 16px 10px;max-width:720px;width:100%;margin:0 auto}
+.brand{font-family:var(--caps);letter-spacing:.32em;font-size:15px;color:var(--gold);font-weight:600}
+.titlebtn{flex:1;min-width:0;text-align:left}
+.titlebtn .pl{font-family:var(--caps);font-size:11px;letter-spacing:.18em;color:var(--ink3);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.titlebtn .tt{font-size:20px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--ink2)}
+.iconbtn:active{background:var(--hl)}
+
+/* 字幕区 */
+main{flex:1;min-height:0;position:relative;max-width:720px;width:100%;margin:0 auto}
+#transcript{position:absolute;inset:0;overflow-y:auto;padding:30vh 22px 30vh;scroll-behavior:smooth;
+  -webkit-mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent);
+  mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent)}
+.cue{position:relative;padding:10px 14px;margin:2px 0;border-radius:10px;font-size:20px;line-height:1.45;color:var(--ink3);
+  transition:color .25s,background .25s;cursor:pointer;user-select:none}
+.cue.on{color:var(--ink);background:var(--hl);font-size:22px}
+.cue .tr{display:none;font-style:italic;font-size:.82em;color:var(--ink2);margin-top:4px;line-height:1.4}
+.cue.on .tr{color:var(--accent)}
+body.tr-all .cue .tr,.cue.show-tr .tr{display:block}
+body.blind .cue:not(.reveal) .tr{color:transparent}
+.trbtn{font-family:var(--caps);font-size:13px;font-weight:600;letter-spacing:.06em;width:40px;height:40px;border-radius:50%;color:var(--ink2)}
+.trbtn.on{color:var(--accent)}
+.trbtn:active{background:var(--hl)}
+.cue.loop{box-shadow:inset 3px 0 0 var(--accent)}
+.cue.star::after{content:"✦";position:absolute;right:8px;top:8px;font-size:12px;color:var(--gold)}
+body.blind .cue:not(.reveal){color:transparent;text-shadow:0 0 10px var(--ink3)}
+body.blind .cue.on:not(.reveal){text-shadow:0 0 12px var(--ink2)}
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;color:var(--ink3);text-align:center;padding:24px}
+.column{width:54px;height:120px;color:var(--gold);opacity:.6}
+.empty .big{font-family:var(--caps);letter-spacing:.2em;font-size:13px}
+.empty .clock{font-size:46px;color:var(--ink2);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+/* 控制台 */
+footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
+.progress{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.bar{flex:1;position:relative;height:28px;touch-action:none;cursor:pointer}
+.bar .rail{position:absolute;left:0;right:0;top:13px;height:2px;background:var(--line);border-radius:2px}
+.bar .fill{position:absolute;left:0;top:13px;height:2px;background:var(--ink);border-radius:2px}
+.bar .seg{position:absolute;top:9px;height:10px;background:var(--accent);opacity:.25;border-radius:2px}
+.bar .knob{position:absolute;top:8px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 4px var(--bg)}
+.bar .mk{position:absolute;top:4px;width:2px;height:20px;background:var(--accent);margin-left:-1px}
+
+.main{display:grid;grid-template-columns:1fr 1fr auto 1fr 1fr;align-items:center;justify-items:center;margin:4px 0 10px}
+.play{width:76px;height:76px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;box-shadow:var(--shadow);
+  outline:1px solid var(--gold);outline-offset:4px}
+.play:active{transform:scale(.96)}
+.ctl{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;color:var(--ink);position:relative}
+.ctl:active{background:var(--hl)}
+.ctl small{position:absolute;bottom:3px;font-size:10px;font-family:var(--caps);letter-spacing:.05em;color:var(--ink3)}
+.slow{width:58px;height:58px;border-radius:50%;border:1px solid var(--line);font-family:var(--caps);font-size:16px;font-weight:600;color:var(--ink2)}
+.slow.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.rep{border:1px solid var(--line)}
+.rep.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.rep.on small{color:var(--accent-ink)}
+
+.tools{display:flex;justify-content:space-between;gap:4px;border-top:1px solid var(--line);padding-top:8px}
+.tool{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border-radius:10px;color:var(--ink2);font-size:12px;letter-spacing:.05em}
+.tool:active{background:var(--hl)}
+.tool.on{color:var(--accent)}
+.tool .v{font-family:var(--caps);font-size:15px;font-weight:600;height:20px;line-height:20px}
+
+/* 抽屉 */
+.scrim{position:fixed;inset:0;background:rgba(20,14,8,.35);opacity:0;pointer-events:none;transition:opacity .25s;z-index:10}
+.drawer{position:fixed;left:0;right:0;bottom:0;max-height:82dvh;background:var(--card);border-radius:18px 18px 0 0;z-index:11;
+  transform:translateY(102%);transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
+  box-shadow:0 -10px 40px -20px rgba(0,0,0,.4);max-width:720px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+.open .scrim{opacity:1;pointer-events:auto}
+.drawer.show{transform:none}
+.drawer h3{font-family:var(--caps);letter-spacing:.24em;font-size:13px;color:var(--gold);margin:0;padding:16px 20px 8px;font-weight:600;display:flex;align-items:center;gap:8px}
+.drawer h3 .sp{flex:1}
+.drawer h3 button{font-family:var(--serif);letter-spacing:0;font-size:14px;color:var(--ink2)}
+.drawer .body{overflow-y:auto;padding:0 8px 16px}
+.row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 12px;border-radius:10px;font-size:17px}
+.row:active{background:var(--hl)}
+.row .n{font-family:var(--caps);font-size:12px;color:var(--ink3);width:24px;text-align:right;flex:none}
+.row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .m{font-size:12px;color:var(--ink3);flex:none}
+.row.cur{color:var(--accent)}
+.row.cur .n{color:var(--accent)}
+.opts{padding:4px 20px 20px;display:grid;gap:18px}
+.opt label{display:block;font-size:13px;color:var(--ink3);letter-spacing:.08em;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:7px 14px;border:1px solid var(--line);border-radius:999px;font-size:15px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.hint{font-size:13px;color:var(--ink3);line-height:1.6}
+.toolsbox{display:grid;gap:10px;border:1px solid var(--line);border-radius:12px;padding:14px}
+.toolsbox .f{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink2)}
+.toolsbox .f span{width:110px;flex:none;font-size:13px;color:var(--ink3)}
+.toolsbox select{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.toolsbox input[type=checkbox]{accent-color:var(--accent);width:18px;height:18px}
+.job{border-top:1px solid var(--line);padding-top:8px;font-size:14px;display:grid;gap:2px}
+.job .h{display:flex;gap:8px;align-items:baseline}
+.job .h b{flex:1;font-weight:600;color:var(--ink)}
+.job .st{font-family:var(--caps);font-size:11px;letter-spacing:.08em;color:var(--ink3)}
+.job .st.running{color:var(--accent)} .job .st.failed{color:#b3412e} .job .st.done{color:var(--gold)}
+.job pre{margin:0;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--ink3);white-space:pre-wrap;word-break:break-all}
+.job button{font-size:13px;color:var(--ink2);text-decoration:underline}
+.toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-10px);background:var(--ink);color:var(--bg);
+  padding:8px 16px;border-radius:999px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:20;white-space:nowrap}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="meander"></div>
+<header>
+  <div class="brand">LYRA</div>
+  <button class="titlebtn" id="titleBtn" aria-label="Listes de lecture">
+    <div class="pl" id="plName">Choisir une liste</div>
+    <div class="tt" id="trackTitle">—</div>
+  </button>
+  <button class="trbtn" id="trBtn" aria-label="Traduire la phrase" hidden>FR</button>
+  <button class="iconbtn" id="starBtn" aria-label="Marquer la phrase">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>
+  </button>
+  <button class="iconbtn" id="menuBtn" aria-label="Réglages">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+</header>
+
+<main>
+  <div id="transcript"></div>
+  <div class="empty" id="empty">
+    <svg class="column" viewBox="0 0 54 120" fill="none" stroke="currentColor" stroke-width="1.2">
+      <path d="M2 4h50M6 8h42M4 8c0 6 6 6 6 0M50 8c0 6-6 6-6 0M10 14h34"/>
+      <path d="M12 14v94M42 14v94M19 16v90M27 16v90M35 16v90"/>
+      <path d="M8 108h38M4 112h46M2 116h50"/>
+    </svg>
+    <div class="clock" id="bigClock">00:00</div>
+    <div class="big" id="emptyMsg">SANS SOUS-TITRES</div>
+  </div>
+</main>
+
+<footer>
+  <div class="progress">
+    <span id="tCur">0:00</span>
+    <div class="bar" id="bar"><div class="rail"></div><div class="seg" id="seg" hidden></div><div class="fill" id="fill"></div>
+      <div class="mk" id="mkA" hidden></div><div class="mk" id="mkB" hidden></div><div class="knob" id="knob"></div></div>
+    <span id="tDur">0:00</span>
+  </div>
+  <div class="main">
+    <button class="slow" id="slowBtn" aria-label="Ralenti">0.8</button>
+    <button class="ctl" id="prevBtn" aria-label="Phrase précédente"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg><small id="prevLbl">phr.</small></button>
+    <button class="play" id="playBtn" aria-label="Lecture / pause">
+      <svg id="icPlay" width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15L19.5 12z"/></svg>
+      <svg id="icPause" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" hidden><path d="M6 4.5h4.2v15H6zM13.8 4.5H18v15h-4.2z"/></svg>
+    </button>
+    <button class="ctl" id="nextBtn" aria-label="Phrase suivante"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l10.5-7z"/></svg><small id="nextLbl">phr.</small></button>
+    <button class="ctl rep" id="repBtn" aria-label="Répéter la phrase"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg><small id="repLbl"></small></button>
+  </div>
+  <div class="tools">
+    <button class="tool" id="back5"><span class="v">−5</span>Reculer</button>
+    <button class="tool" id="abBtn"><span class="v" id="abV">A·B</span>Boucle</button>
+    <button class="tool" id="shadowBtn"><span class="v">⟡</span>Répéter</button>
+    <button class="tool" id="blindBtn"><span class="v">◐</span>Masquer</button>
+    <button class="tool" id="speedBtn"><span class="v" id="speedV">1.0</span>Vitesse</button>
+    <button class="tool" id="fwd5"><span class="v">+5</span>Avancer</button>
+  </div>
+</footer>
+
+<div class="scrim" id="scrim"></div>
+
+<section class="drawer" id="libDrawer">
+  <h3><span id="libHead">LISTES DE LECTURE</span><span class="sp"></span><button id="libBack" hidden>‹ Retour</button></h3>
+  <div class="body" id="libBody"></div>
+</section>
+
+<section class="drawer" id="setDrawer">
+  <h3>RÉGLAGES</h3>
+  <div class="body"><div class="opts">
+    <div class="opt"><label>Vitesse du bouton ralenti</label><div class="chips" data-key="slowRate" data-vals="0.6,0.7,0.75,0.8,0.85,0.9"></div></div>
+    <div class="opt"><label>Nombre de répétitions (phrase / boucle A-B)</label><div class="chips" data-key="repeatTimes" data-vals="2,3,5,10,0" data-fmt="times"></div></div>
+    <div class="opt"><label>Pause entre les répétitions — le temps de répéter à voix haute</label><div class="chips" data-key="gap" data-vals="0,1,2,3,5,auto" data-fmt="gap"></div></div>
+    <div class="opt"><label>Ordre de lecture</label><div class="chips" data-key="playMode" data-vals="list,loop,one" data-fmt="mode"></div></div>
+    <div class="opt"><label>Minuterie d’arrêt</label><div class="chips" data-key="sleep" data-vals="0,15,30,45,60,track" data-fmt="sleep"></div></div>
+    <div class="opt"><label>Traduction</label><div class="chips" data-key="trMode" data-vals="tap,all,off" data-fmt="tr"></div></div>
+    <div class="opt"><label>Langue de traduction</label><div class="chips" data-key="trLang" data-vals="fr,zh" data-fmt="lang"></div></div>
+    <div class="opt"><label>Apparence</label><div class="chips" data-key="theme" data-vals="auto,light,dark" data-fmt="theme"></div></div>
+    <div class="opt"><label>Phrases marquées</label><button class="chip" id="openStars">Voir les favoris ✦</button></div>
+    <div class="opt" id="toolsOpt" hidden><label>Outils · ordinateur</label>
+      <div class="toolsbox">
+        <label class="f"><span>Liste</span><select id="tDir"></select></label>
+        <label class="f"><span>Langue de l’audio</span><select id="tLang">
+          <option value="">Détection auto</option><option value="en">Anglais</option><option value="fr">Français</option>
+          <option value="de">Allemand</option><option value="es">Espagnol</option><option value="it">Italien</option><option value="ja">Japonais</option></select></label>
+        <label class="f"><input type="checkbox" id="tForce"> Remplacer les fichiers existants</label>
+        <div class="chips">
+          <button class="chip" data-job="subs">Générer les sous-titres</button>
+          <button class="chip" data-job="en-fr">Traduire EN → FR</button>
+          <button class="chip" data-job="en-zh">Traduire EN → 中文</button>
+          <button class="chip" data-job="fr-zh">Traduire FR → 中文</button>
+        </div>
+        <div id="jobList"></div>
+      </div>
+    </div>
+    <div class="hint">
+      · Touchez une phrase pour y aller ; appui long pour la répéter en boucle.<br>
+      · Mode Répéter : pause automatique après chaque phrase (≈ sa durée) pour la redire à voix haute.<br>
+      · Mode Masquer : le texte est flouté, touchez une phrase pour la révéler (dictée, écoute fine).<br>
+      · Sans sous-titres, phrase précédente / suivante devient ±5 s, et la boucle répète les 5 dernières secondes.<br>
+      · Traduction : touchez FR en haut pour traduire la phrase en cours (fichier <i>nom</i>.fr.srt).<br>
+      · Clavier : Espace lecture/pause, ←/→ phrase précédente/suivante, R répéter, S ralenti, A boucle A-B.
+    </div>
+  </div></div>
+</section>
+
+<div class="toast" id="toast"></div>
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+const $ = id => document.getElementById(id);
+const audio = $('audio');
+
+// ---------- 持久化 ----------
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('lyra.'+k); return v===null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('lyra.'+k, JSON.stringify(v)); }catch{} }
+};
+const S = Object.assign({ slowRate:0.8, repeatTimes:3, gap:0, playMode:'list', sleep:0, theme:'auto', rate:1, trMode:'tap', trLang:'fr' }, store.get('settings', {}));
+const saveS = () => store.set('settings', { ...S, sleep:0 });
+S.sleep = 0;
+
+// ---------- 状态 ----------
+let playlists = [], tracks = [], plName = store.get('pl', null), idx = -1;
+let cues = [], cueIdx = -1, trCues = [];
+let loop = null;          // {a, b, kind:'cue'|'ab'|'tail', count}
+let abPending = null;     // 已设置 A，等待 B
+let shadow = false, blind = false;
+let waitTimer = null;     // 复读停顿/跟读停顿的计时器
+let sleepTimer = null;
+let stars = store.get('stars', []);   // [{pl, track, start, end, text}]
+
+// ---------- 工具 ----------
+const fmt = t => { if(!isFinite(t)) return '0:00'; t = Math.max(0, t|0); const h = t/3600|0, m = (t%3600)/60|0, s = t%60;
+  return (h ? h+':'+String(m).padStart(2,'0') : m) + ':' + String(s).padStart(2,'0'); };
+const enc = p => p.split('/').map(encodeURIComponent).join('/');
+let toastT;
+function toast(msg){ const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove('show'), 1600); }
+function applyTheme(){ if (S.theme==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = S.theme; }
+applyTheme();
+
+// ---------- 字幕解析（SRT / VTT / LRC）----------
+function parseTime(s){ const p = s.trim().replace(',', '.').split(':').map(Number); return p.reduce((a, v) => a*60 + v, 0); }
+function parseSubs(text){
+  text = text.replace(/^﻿/, '').replace(/\r/g, '');
+  const out = [];
+  if (/\[\d+:\d+(?:[.:]\d+)?\]/.test(text) && !/-->/.test(text)) {          // LRC
+    for (const line of text.split('\n')) {
+      const tags = [...line.matchAll(/\[(\d+):(\d+(?:[.:]\d+)?)\]/g)];
+      if (!tags.length) continue;
+      const txt = line.replace(/\[[^\]]*\]/g, '').trim();
+      for (const m of tags) out.push({ start: +m[1]*60 + parseFloat(m[2].replace(':', '.')), text: txt });
+    }
+    out.sort((a, b) => a.start - b.start);
+    const res = out.filter(c => c.text);
+    // LRC 没有结束时间：用下一行开始时间
+    for (let i = 0; i < res.length; i++) {
+      const nxt = out.find(c => c.start > res[i].start);
+      res[i].end = nxt ? nxt.start : Infinity;
+    }
+    return res;
+  }
+  for (const block of text.split(/\n\s*\n/)) {                                  // SRT / VTT
+    const lines = block.split('\n');
+    const ti = lines.findIndex(l => l.includes('-->'));
+    if (ti < 0) continue;
+    const [a, b] = lines[ti].split('-->');
+    const txt = lines.slice(ti+1).join('\n').replace(/<[^>]+>/g, '').replace(/\{\\[^}]*\}/g, '').trim();
+    if (txt) out.push({ start: parseTime(a), end: parseTime(b.trim().split(/\s+/)[0]), text: txt });
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+
+// ---------- 播放列表 ----------
+async function loadPlaylists(){
+  playlists = await fetch('api/playlists').then(r => r.json());
+  if (!playlists.find(p => p.name === plName)) plName = playlists[0]?.name || null;
+  if (plName) await openPlaylist(plName, store.get('track', 0), store.get('pos', 0), false);
+  else { $('plName').textContent = 'Aucune liste trouvée'; $('trackTitle').textContent = 'Vérifiez MEDIA_DIR dans .env'; }
+}
+// 加载原文与译文字幕（译文优先用设置里的语言，没有就用现有的任一种）
+let trLangNow = '';
+async function loadSubs(t){
+  cues = []; cueIdx = -1; trCues = []; trLangNow = '';
+  const get = f => fetch('media/' + enc(f)).then(r => r.text()).then(parseSubs);
+  if (t.sub) { try { cues = await get(t.sub); } catch {} }
+  const langs = Object.keys(t.tr || {});
+  trLangNow = langs.includes(S.trLang) ? S.trLang : (langs[0] || '');
+  if (trLangNow && cues.length) { try { trCues = await get(t.tr[trLangNow]); } catch {} }
+  $('trBtn').textContent = ({ zh:'中' })[trLangNow] || trLangNow.toUpperCase();
+  renderCues(); applyTr();
+}
+// 不打断播放地刷新字幕（切换译文语言或后台任务完成后）
+async function reloadSubs(){
+  if (idx < 0) return;
+  await loadSubs(tracks[idx]);
+  if (cues.length) setCue(cueAt(audio.currentTime), true);
+  if (loop?.kind === 'cue') updLoopUI();
+}
+
+async function openPlaylist(name, i = 0, pos = 0, autoplay = true){
+  plName = name; store.set('pl', name);
+  tracks = await fetch('api/tracks?dir=' + encodeURIComponent(name)).then(r => r.json());
+  $('plName').textContent = name;
+  await loadTrack(Math.min(i, tracks.length-1), pos, autoplay);
+}
+async function loadTrack(i, pos = 0, autoplay = true){
+  if (i < 0 || i >= tracks.length) return;
+  idx = i; store.set('track', i);
+  const t = tracks[i];
+  clearLoop(); cancelWait();
+  $('trackTitle').textContent = t.title;
+  audio.src = 'media/' + enc(t.file);
+  audio.playbackRate = S.rate;
+  if (pos) audio.addEventListener('loadedmetadata', () => { audio.currentTime = pos; }, { once:true });
+  await loadSubs(t);
+  setMediaSession();
+  if (autoplay) play();
+}
+
+// ---------- 字幕渲染 ----------
+function renderCues(){
+  const box = $('transcript'); box.innerHTML = '';
+  $('empty').hidden = !!cues.length;
+  $('prevLbl').textContent = $('nextLbl').textContent = cues.length ? 'phr.' : '5 s';
+  cues.forEach((c, i) => {
+    const d = document.createElement('div');
+    d.className = 'cue'; d.textContent = c.text; d.dataset.i = i;
+    const tr = trFor(i);
+    if (tr) { const e = document.createElement('div'); e.className = 'tr'; e.textContent = tr; d.appendChild(e); }
+    if (isStarred(c)) d.classList.add('star');
+    box.appendChild(d);
+  });
+}
+// 译文按序号对应；条数不一致时按开始时间找最接近的一条
+function trFor(i){
+  if (!trCues.length) return '';
+  if (trCues.length === cues.length) return trCues[i].text;
+  let best = null, bd = 1;
+  for (const c of trCues) { const d = Math.abs(c.start - cues[i].start); if (d < bd) { bd = d; best = c; } }
+  return best ? best.text : '';
+}
+function applyTr(){
+  document.body.classList.toggle('tr-all', S.trMode === 'all' && trCues.length > 0);
+  $('trBtn').hidden = !trCues.length || S.trMode === 'off';
+  if (S.trMode === 'off') document.querySelectorAll('.show-tr').forEach(e => e.classList.remove('show-tr'));
+  $('trBtn').classList.toggle('on', S.trMode === 'all' || !!$('transcript').children[cueIdx]?.classList.contains('show-tr'));
+}
+$('trBtn').onclick = () => {
+  if (S.trMode === 'all') { S.trMode = 'tap'; saveS(); applyTr(); return; }
+  const el = $('transcript').children[cueIdx]; if (!el) return;
+  el.classList.toggle('show-tr'); applyTr(); centerCue();
+};
+
+function cueAt(t){
+  // 二分查找：最后一个 start <= t 的句子
+  let lo = 0, hi = cues.length - 1, r = -1;
+  while (lo <= hi) { const m = (lo+hi) >> 1; if (cues[m].start <= t + 0.001) { r = m; lo = m+1; } else hi = m-1; }
+  return r;
+}
+function centerCue(){
+  const box = $('transcript'), el = box.children[cueIdx];
+  if (el) box.scrollTop = el.offsetTop - box.clientHeight*0.42 + el.offsetHeight/2;
+}
+function setCue(i, force){
+  if (i === cueIdx && !force) return;
+  const box = $('transcript');
+  box.children[cueIdx]?.classList.remove('on', 'reveal');
+  cueIdx = i;
+  const el = box.children[i];
+  if (el) { el.classList.add('on'); $('trBtn').classList.toggle('on', S.trMode === 'all' || el.classList.contains('show-tr')); centerCue(); }
+}
+$('transcript').addEventListener('click', e => {
+  const el = e.target.closest('.cue'); if (!el || longPressed) return;
+  if (blind && !el.classList.contains('reveal')) { el.classList.add('reveal'); return; }
+  const i = +el.dataset.i;
+  if (loop && loop.kind === 'cue') setLoopCue(i); else seek(cues[i].start);
+  if (audio.paused) play();
+});
+// 长按字幕 = 复读该句
+let lpTimer, longPressed = false;
+$('transcript').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.cue'); longPressed = false; if (!el) return;
+  lpTimer = setTimeout(() => { longPressed = true; setLoopCue(+el.dataset.i); play(); navigator.vibrate?.(15); }, 500);
+});
+['pointerup','pointercancel','pointermove'].forEach(ev => $('transcript').addEventListener(ev, e => {
+  if (ev === 'pointermove' && Math.abs(e.movementY) < 3) return; clearTimeout(lpTimer); }));
+
+// ---------- 播放控制 ----------
+function play(){ cancelWait(); audio.play().catch(()=>{}); }
+function pause(){ cancelWait(); audio.pause(); updPlayUI(); }
+function toggle(){ (audio.paused && !waitTimer) ? play() : pause(); }
+function seek(t){ audio.currentTime = Math.max(0, Math.min(t, (audio.duration || 1e9) - 0.05)); tick(true); }
+function cancelWait(){ if (waitTimer) { clearTimeout(waitTimer); waitTimer = null; } }
+
+function prevSentence(){
+  if (!cues.length) return seek(audio.currentTime - 5);
+  const t = audio.currentTime, i = cueAt(t);
+  let target = (i >= 0 && t - cues[i].start > 1.2) ? i : Math.max(0, i - 1);
+  if (loop?.kind === 'cue') return setLoopCue(target);
+  seek(cues[target].start);
+}
+function nextSentence(){
+  if (!cues.length) return seek(audio.currentTime + 5);
+  const i = Math.min(cues.length - 1, cueAt(audio.currentTime) + 1);
+  if (loop?.kind === 'cue') return setLoopCue(i);
+  seek(cues[i].start);
+}
+
+// ---------- 复读 ----------
+const PAD = 0.12; // 句首提前一点点，避免吞音
+function setLoopCue(i){
+  if (i < 0) i = 0;
+  const c = cues[i];
+  const end = isFinite(c.end) ? c.end : (cues[i+1]?.start ?? audio.duration);
+  loop = { a: Math.max(0, c.start - PAD), b: end, kind:'cue', count:0, i };
+  abPending = null; cancelWait(); seek(loop.a); updLoopUI();
+}
+function toggleRepeat(){
+  if (loop) return clearLoop(true);
+  if (cues.length) { const i = cueAt(audio.currentTime); setLoopCue(i < 0 ? 0 : i); toast('Répétition de la phrase ' + timesText()); }
+  else { const t = audio.currentTime; loop = { a: Math.max(0, t - 5), b: t, kind:'tail', count:0 }; seek(loop.a); updLoopUI(); toast('Répétition des 5 dernières secondes'); }
+  if (audio.paused) play();
+}
+function abPress(){
+  const t = audio.currentTime;
+  if (loop?.kind === 'ab' || (loop && !abPending)) { if (loop.kind === 'ab') { clearLoop(true); return; } clearLoop(); }
+  if (abPending === null) { abPending = t; toast('Point A fixé — touchez encore pour B'); updLoopUI(); return; }
+  if (t - abPending < 0.3) { toast('B doit être après A'); return; }
+  loop = { a: abPending, b: t, kind:'ab', count:0 }; abPending = null; seek(loop.a); updLoopUI(); toast('Boucle A-B ' + timesText());
+}
+function clearLoop(msg){ loop = null; abPending = null; cancelWait(); updLoopUI(); if (msg) toast('Répétition désactivée'); }
+const timesText = () => S.repeatTimes ? `× ${S.repeatTimes}` : '× ∞';
+function updLoopUI(){
+  const on = !!loop;
+  $('repBtn').classList.toggle('on', on && loop.kind !== 'ab');
+  $('repLbl').textContent = on && loop.kind !== 'ab' ? (S.repeatTimes ? `${loop.count+1}/${S.repeatTimes}` : '∞') : '';
+  $('abBtn').classList.toggle('on', abPending !== null || loop?.kind === 'ab');
+  $('abV').textContent = abPending !== null ? 'A·?' : (loop?.kind === 'ab' ? `${loop.count+1}/${S.repeatTimes || '∞'}` : 'A·B');
+  [...$('transcript').querySelectorAll('.loop')].forEach(e => e.classList.remove('loop'));
+  if (loop?.kind === 'cue') $('transcript').children[loop.i]?.classList.add('loop');
+  drawMarks();
+}
+function gapFor(len){ return S.gap === 'auto' ? Math.min(8, len * 1.1 + 0.5) : +S.gap; }
+function onLoopEnd(){
+  loop.count++;
+  if (S.repeatTimes && loop.count >= S.repeatTimes) {
+    const k = loop.kind; clearLoop();
+    if (k === 'cue' && shadow) return shadowPause(audio.currentTime);
+    return; // 复读结束，继续往下播放
+  }
+  updLoopUI();
+  const g = gapFor(loop.b - loop.a), a = loop.a;
+  if (g > 0) { audio.pause(); seek(a); waitTimer = setTimeout(() => { waitTimer = null; audio.play(); }, g*1000); }
+  else seek(a);
+}
+// 跟读：每句结束自动暂停一会儿
+let shadowDoneFor = -1;
+function shadowPause(){
+  const c = cues[cueIdx]; if (!c) return;
+  const len = (isFinite(c.end) ? c.end : audio.currentTime) - c.start;
+  audio.pause();
+  const g = S.gap === 0 || S.gap === '0' ? Math.min(8, len * 1.1 + 0.5) : gapFor(len);
+  waitTimer = setTimeout(() => { waitTimer = null; audio.play(); }, g*1000);
+  updPlayUI(true);
+}
+
+// ---------- 主循环（rAF 精确检测边界；后台时用 timeupdate 兜底）----------
+let raf = 0;
+function tick(seeking){
+  const t = audio.currentTime, d = audio.duration || 0;
+  if (loop && !seeking && !audio.paused && t >= loop.b - 0.03) { onLoopEnd(); }
+  else if (shadow && !loop && !seeking && !audio.paused && cues.length) {
+    const c = cues[cueIdx];
+    if (c && isFinite(c.end) && t >= c.end - 0.03 && shadowDoneFor !== cueIdx) { shadowDoneFor = cueIdx; shadowPause(); }
+  }
+  if (cues.length) { const i = cueAt(t + (loop?.kind === "cue" ? PAD : 0)); if (i !== cueIdx) { setCue(i); if (seeking) shadowDoneFor = -1; } }
+  if (!dragging) {
+    const p = d ? t / d * 100 : 0;
+    $('fill').style.width = p + '%'; $('knob').style.left = p + '%';
+    $('tCur').textContent = fmt(t);
+  }
+  $('bigClock').textContent = fmt(t);
+}
+function loopRAF(){ tick(); raf = audio.paused ? 0 : requestAnimationFrame(loopRAF); }
+audio.addEventListener('play', () => { updPlayUI(); if (!raf) raf = requestAnimationFrame(loopRAF); });
+audio.addEventListener('pause', () => updPlayUI());
+audio.addEventListener('timeupdate', () => { if (document.hidden) tick(); });
+audio.addEventListener('loadedmetadata', () => { $('tDur').textContent = fmt(audio.duration); drawMarks(); });
+audio.addEventListener('ended', () => {
+  if (S.sleep === 'track') { S.sleep = 0; toast('Arrêt programmé'); return; }
+  if (S.playMode === 'one') { seek(0); return play(); }
+  if (idx + 1 < tracks.length) loadTrack(idx + 1);
+  else if (S.playMode === 'loop') loadTrack(0);
+});
+let lastSave = 0;
+audio.addEventListener('timeupdate', () => { const n = Date.now(); if (n - lastSave > 3000) { lastSave = n; store.set('pos', audio.currentTime); } });
+
+function updPlayUI(waiting){
+  const playing = !audio.paused || waiting || !!waitTimer;
+  $('icPlay').toggleAttribute('hidden', playing); $('icPause').toggleAttribute('hidden', !playing);
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing';
+}
+
+// ---------- 进度条 ----------
+let dragging = false;
+function barPos(e){ const r = $('bar').getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); }
+$('bar').addEventListener('pointerdown', e => { dragging = true; $('bar').setPointerCapture(e.pointerId); barMove(e); });
+$('bar').addEventListener('pointermove', e => { if (dragging) barMove(e); });
+$('bar').addEventListener('pointerup', e => { if (!dragging) return; dragging = false; const t = barPos(e) * (audio.duration || 0);
+  if (loop && (t < loop.a || t > loop.b)) clearLoop(true); seek(t); });
+function barMove(e){ const p = barPos(e) * 100; $('fill').style.width = p + '%'; $('knob').style.left = p + '%'; $('tCur').textContent = fmt(p/100 * (audio.duration||0)); }
+function drawMarks(){
+  const d = audio.duration || 0, pc = t => (d ? t/d*100 : 0) + '%';
+  $('mkA').hidden = abPending === null && !loop; $('mkB').hidden = !loop; $('seg').hidden = !loop;
+  if (abPending !== null) $('mkA').style.left = pc(abPending);
+  if (loop) { $('mkA').style.left = pc(loop.a); $('mkB').style.left = pc(loop.b); $('seg').style.left = pc(loop.a); $('seg').style.width = d ? ((loop.b-loop.a)/d*100)+'%' : 0; }
+}
+
+// ---------- 速度 ----------
+const SPEEDS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2];
+function setRate(r){ S.rate = r; audio.playbackRate = r; audio.preservesPitch = true; saveS();
+  $('speedV').textContent = r.toFixed(r*100 % 10 ? 2 : 1); $('slowBtn').classList.toggle('on', r !== 1); $('slowBtn').textContent = r !== 1 ? r : S.slowRate; }
+$('slowBtn').onclick = () => { setRate(S.rate === 1 ? +S.slowRate : 1); toast(S.rate === 1 ? 'Vitesse normale' : `Ralenti ${S.rate}×`); };
+$('speedBtn').onclick = () => { const i = SPEEDS.indexOf(S.rate); setRate(SPEEDS[(i + 1) % SPEEDS.length]); toast(`${S.rate}×`); };
+
+// ---------- 按钮 ----------
+$('playBtn').onclick = toggle;
+$('prevBtn').onclick = prevSentence;
+$('nextBtn').onclick = nextSentence;
+$('repBtn').onclick = toggleRepeat;
+$('abBtn').onclick = abPress;
+$('back5').onclick = () => seek(audio.currentTime - 5);
+$('fwd5').onclick = () => seek(audio.currentTime + 5);
+$('shadowBtn').onclick = () => { shadow = !shadow; shadowDoneFor = cueIdx; $('shadowBtn').classList.toggle('on', shadow);
+  toast(shadow ? (cues.length ? 'Mode Répéter : pause après chaque phrase' : 'Ce mode nécessite des sous-titres') : 'Mode Répéter désactivé'); if (!cues.length) { shadow = false; $('shadowBtn').classList.remove('on'); } };
+$('blindBtn').onclick = () => { blind = !blind; document.body.classList.toggle('blind', blind); $('blindBtn').classList.toggle('on', blind); toast(blind ? 'Texte masqué : touchez pour révéler' : 'Texte affiché'); };
+
+// 收藏
+const isStarred = c => stars.some(s => s.pl === plName && s.track === tracks[idx]?.file && Math.abs(s.start - c.start) < 0.01);
+$('starBtn').onclick = () => {
+  const t = tracks[idx]; if (!t) return;
+  const c = cues[cueIdx] || { start: Math.max(0, audio.currentTime - 3), end: audio.currentTime + 2, text: `${t.title} @ ${fmt(audio.currentTime)}` };
+  const k = stars.findIndex(s => s.track === t.file && Math.abs(s.start - c.start) < 0.01);
+  if (k >= 0) { stars.splice(k, 1); toast('Retiré des favoris'); } else { stars.unshift({ pl: plName, track: t.file, title: t.title, start: c.start, end: c.end, text: c.text }); toast('Ajouté aux favoris ✦'); }
+  store.set('stars', stars);
+  if (cueIdx >= 0) $('transcript').children[cueIdx]?.classList.toggle('star', k < 0);
+};
+
+// ---------- 抽屉 ----------
+function openDrawer(id){ document.body.classList.add('open'); $(id).classList.add('show'); }
+function closeDrawers(){ document.body.classList.remove('open'); document.querySelectorAll('.drawer').forEach(d => d.classList.remove('show')); }
+$('scrim').onclick = closeDrawers;
+$('titleBtn').onclick = () => { renderTracks(plName); openDrawer('libDrawer'); };
+$('menuBtn').onclick = () => { renderOpts(); if (toolsOn) { fillToolDirs(); pollJobs(); } openDrawer('setDrawer'); };
+$('libBack').onclick = renderPlaylists;
+function row(n, t, m, cur, onclick){ const b = document.createElement('button'); b.className = 'row' + (cur ? ' cur' : '');
+  b.innerHTML = `<span class="n"></span><span class="t"></span><span class="m"></span>`;
+  b.children[0].textContent = n; b.children[1].textContent = t; b.children[2].textContent = m; b.onclick = onclick; return b; }
+function renderPlaylists(){
+  $('libHead').textContent = 'LISTES DE LECTURE'; $('libBack').hidden = true;
+  const body = $('libBody'); body.innerHTML = '';
+  playlists.forEach((p, i) => body.appendChild(row(toRoman(i+1), p.name, p.count + ' pistes', p.name === plName, () => renderTracks(p.name))));
+}
+async function renderTracks(name){
+  if (!name) return renderPlaylists();
+  const list = name === plName ? tracks : await fetch('api/tracks?dir=' + encodeURIComponent(name)).then(r => r.json());
+  $('libHead').textContent = name; $('libBack').hidden = false;
+  const body = $('libBody'); body.innerHTML = '';
+  list.forEach((t, i) => body.appendChild(row(i+1, t.title, t.sub ? 'sous-titres' : '', name === plName && i === idx,
+    async () => { closeDrawers(); if (name !== plName) await openPlaylist(name, i); else loadTrack(i); })));
+  body.querySelector('.cur')?.scrollIntoView({ block:'center' });
+}
+function renderStars(){
+  $('setDrawer').classList.remove('show'); openDrawer('libDrawer');
+  $('libHead').textContent = 'FAVORIS'; $('libBack').hidden = false;
+  const body = $('libBody'); body.innerHTML = '';
+  if (!stars.length) body.innerHTML = '<div class="hint" style="padding:12px 20px">Aucun favori. Pendant la lecture, touchez ☆ en haut à droite pour marquer la phrase.</div>';
+  stars.forEach(s => body.appendChild(row('✦', s.text, s.title + ' · ' + fmt(s.start), false, async () => {
+    closeDrawers();
+    const i = (s.pl === plName ? tracks : await fetch('api/tracks?dir=' + encodeURIComponent(s.pl)).then(r => r.json())).findIndex(t => t.file === s.track);
+    if (i < 0) return toast('Fichier introuvable');
+    if (s.pl !== plName) await openPlaylist(s.pl, i, s.start, false); else if (i !== idx) await loadTrack(i, s.start, false);
+    const ci = cues.length ? cueAt(s.start + 0.01) : -1;
+    const go = () => { if (ci >= 0) setLoopCue(ci); else { loop = { a: s.start, b: s.end, kind:'tail', count:0 }; seek(s.start); updLoopUI(); } play(); };
+    audio.readyState >= 1 ? go() : audio.addEventListener('loadedmetadata', go, { once:true });
+  })));
+}
+$('openStars').onclick = renderStars;
+function toRoman(n){ const r = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let s = ''; if (n > 39) return n; for (const [v, c] of r) while (n >= v) { s += c; n -= v; } return s; }
+
+const FMT = {
+  times: v => v === '0' ? '∞' : v + ' fois',
+  gap: v => v === 'auto' ? 'selon la phrase' : v + 's',
+  mode: v => ({ list:'À la suite', loop:'Boucler la liste', one:'Boucler la piste' })[v],
+  sleep: v => v === '0' ? 'Non' : v === 'track' ? 'Fin de la piste' : v + ' min',
+  lang: v => ({ fr:'Français', zh:'中文' })[v],
+  tr: v => ({ tap:'Sur demande (FR)', all:'Toujours', off:'Non' })[v],
+  theme: v => ({ auto:'Système', light:'Jour', dark:'Nuit' })[v],
+};
+function renderOpts(){
+  document.querySelectorAll('.chips[data-key]').forEach(box => {
+    const key = box.dataset.key; box.innerHTML = '';
+    box.dataset.vals.split(',').forEach(v => {
+      const b = document.createElement('button'); b.className = 'chip' + (String(S[key]) === v ? ' on' : '');
+      b.textContent = FMT[box.dataset.fmt] ? FMT[box.dataset.fmt](v) : v;
+      b.onclick = () => {
+        S[key] = isNaN(+v) ? v : +v; saveS();
+        if (key === 'slowRate' && S.rate !== 1) setRate(S.slowRate); else if (key === 'slowRate') $('slowBtn').textContent = v;
+        if (key === 'theme') applyTheme();
+        if (key === 'trMode') applyTr();
+        if (key === 'trLang') reloadSubs();
+        if (key === 'repeatTimes') updLoopUI();
+        if (key === 'sleep') { clearTimeout(sleepTimer); if (typeof S.sleep === 'number' && S.sleep) sleepTimer = setTimeout(() => { pause(); S.sleep = 0; toast('Arrêt programmé'); }, S.sleep*60000); }
+        renderOpts();
+      };
+      box.appendChild(b);
+    });
+  });
+}
+
+// ---------- 锁屏 / 耳机控制 ----------
+function setMediaSession(){
+  if (!('mediaSession' in navigator)) return;
+  const t = tracks[idx];
+  navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: plName, album: 'Lyra', artwork: [{ src:'icon.svg', sizes:'any', type:'image/svg+xml' }] });
+  const h = { play, pause, previoustrack: prevSentence, nexttrack: nextSentence,
+    seekbackward: () => seek(audio.currentTime - 5), seekforward: () => seek(audio.currentTime + 5),
+    seekto: e => seek(e.seekTime) };
+  for (const k in h) try { navigator.mediaSession.setActionHandler(k, h[k]); } catch {}
+}
+
+// ---------- 键盘 ----------
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); toggle(); }
+  else if (k === 'arrowleft') prevSentence();
+  else if (k === 'arrowright') nextSentence();
+  else if (k === 'r') toggleRepeat();
+  else if (k === 's') $('slowBtn').click();
+  else if (k === 'a') abPress();
+  else if (k === 't') $('trBtn').click();
+  else if (k === 'escape') closeDrawers();
+});
+
+// ---------- 电脑版工具：生成字幕 / 翻译 ----------
+let toolsOn = false, jobsActive = false, pollT = null;
+const seenDone = new Set();
+async function initTools(){
+  try { toolsOn = (await fetch('api/config').then(r => r.json())).tools; } catch {}
+  $('toolsOpt').hidden = !toolsOn;
+  if (toolsOn) pollJobs(true);
+}
+function fillToolDirs(){
+  const sel = $('tDir'), cur = sel.value || plName;
+  sel.innerHTML = '';
+  playlists.forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p.name; sel.appendChild(o); });
+  sel.value = playlists.some(p => p.name === cur) ? cur : plName;
+}
+document.querySelectorAll('[data-job]').forEach(b => b.onclick = async () => {
+  const k = b.dataset.job, body = { dir: $('tDir').value, force: $('tForce').checked };
+  if (k === 'subs') Object.assign(body, { kind:'subs', lang: $('tLang').value });
+  else { const [src, tgt] = k.split('-'); Object.assign(body, { kind:'translate', src, tgt }); }
+  const r = await fetch('api/jobs', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  toast(r.ok ? 'Tâche ajoutée' : await r.text());
+  pollJobs();
+});
+const ST = { queued:'EN ATTENTE', running:'EN COURS', done:'TERMINÉ', failed:'ÉCHEC', cancelled:'ANNULÉ' };
+async function pollJobs(first){
+  clearTimeout(pollT);
+  let list = [];
+  try { list = await fetch('api/jobs').then(r => r.json()); } catch {}
+  const box = $('jobList'); box.innerHTML = '';
+  list.slice().reverse().slice(0, 6).forEach(j => {
+    const d = document.createElement('div'); d.className = 'job';
+    d.innerHTML = '<div class="h"><b></b><span class="st"></span></div><pre></pre>';
+    d.querySelector('b').textContent = j.label + (j.progress ? ` · ${j.progress}` : '');
+    const st = d.querySelector('.st'); st.textContent = ST[j.status]; st.classList.add(j.status);
+    d.querySelector('pre').textContent = j.last.join('\n');
+    if (j.status === 'running' || j.status === 'queued') {
+      const c = document.createElement('button'); c.textContent = 'Annuler';
+      c.onclick = () => fetch(`api/jobs/${j.id}/cancel`, { method:'POST' }).then(() => pollJobs());
+      d.querySelector('.h').appendChild(c);
+    }
+    box.appendChild(d);
+  });
+  // 新完成的任务：若是当前播放列表，就地更新字幕
+  for (const j of list) {
+    if (j.status !== 'done' || seenDone.has(j.id)) continue;
+    seenDone.add(j.id);
+    if (!first && j.dir === plName) await refreshTracks();
+  }
+  jobsActive = list.some(j => j.status === 'running' || j.status === 'queued');
+  pollT = setTimeout(pollJobs, jobsActive || $('setDrawer').classList.contains('show') ? 2000 : 15000);
+}
+async function refreshTracks(){
+  tracks = await fetch('api/tracks?dir=' + encodeURIComponent(plName)).then(r => r.json());
+  await reloadSubs();
+  toast('Sous-titres mis à jour');
+}
+
+setRate(S.rate);
+loadPlaylists().then(initTools);
+</script>
+</body>
+</html>
