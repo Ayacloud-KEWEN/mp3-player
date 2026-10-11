@@ -73,4 +73,11 @@ tools/.venv/Scripts/python tools/gen_subs.py <目录> --lang en
 tools/.venv/Scripts/python tools/translate_subs.py <目录> --src en --tgt zh
 ```
 
+### 播客订阅（电脑版）
+设置 ☰ →「Outils · ordinateur」→ PODCASTS：粘贴 Apple Podcasts 链接或 RSS 地址，选择下载最近几期，点「S’abonner」。
+- 节目下载到 `fra/podcasts/<节目名>/`（可用 `.env` 的 `PODCAST_DIR` 修改），文件名带发布日期
+- 「Nouveautés」下载新出的几期；「Épisodes」列出最近 30 期，可单独下载
+- 下载后在同一面板选择该播放列表，音频语言选 Français，生成字幕和译文，再拷到树莓派
+- 播放列表支持多层文件夹（如 `fra/podcasts/On va déguster`），每个含音频的文件夹都是一个列表
+
 > 英文原版书建议用 **EN → 中文** 直接翻译；经法语中转（FR → 中文）会损失意思，适合本身就是法语的音频。

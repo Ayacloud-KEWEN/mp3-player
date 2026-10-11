@@ -9,6 +9,8 @@ __pycache__/
 # 音频与字幕数据
 fry1/
 .phrases/
+fra/
+.subscriptions.json
 *.mp3
 *.wav
 *.m4a

@@ -37,6 +37,9 @@ const MIME = {
   '.srt': 'text/plain; charset=utf-8', '.vtt': 'text/vtt; charset=utf-8', '.lrc': 'text/plain; charset=utf-8',
 };
 
+// 播客订阅（电脑版工具）
+const podcasts = require('./podcasts')({ dir: path.resolve(MEDIA_DIR, process.env.PODCAST_DIR || 'fra/podcasts') });
+
 // 日常句子（Piper 合成）
 const phrases = require('./phrases')({
   mediaDir: MEDIA_DIR, python: PYTHON, toolsDir: TOOLS_DIR,
@@ -56,11 +59,17 @@ function safeJoin(root, rel) {
 function listPlaylists() {
   if (!fs.existsSync(MEDIA_DIR)) return [];
   const result = [];
-  for (const d of fs.readdirSync(MEDIA_DIR, { withFileTypes: true })) {
-    if (!d.isDirectory() || d.name.startsWith('.')) continue;
-    const tracks = listTracks(d.name);
-    if (tracks.length) result.push({ name: d.name, count: tracks.length });
-  }
+  (function walk(rel, depth) {
+    let entries;
+    try { entries = fs.readdirSync(path.join(MEDIA_DIR, rel), { withFileTypes: true }); } catch { return; }
+    for (const d of entries) {
+      if (!d.isDirectory() || d.name.startsWith('.')) continue;
+      const name = rel ? rel + '/' + d.name : d.name;
+      const tracks = listTracks(name);
+      if (tracks.length) result.push({ name, count: tracks.length });
+      if (depth < 4) walk(name, depth + 1);
+    }
+  })('', 1);
   return result.sort((a, b) => collator.compare(a.name, b.name)).concat(phrases.playlists());
 }
 
@@ -159,10 +168,32 @@ function addJob(body) {
   return job;
 }
 
+function runFn(job) {
+  job.status = 'running';
+  job.started = Date.now();
+  const log = l => {
+    job.log.push(l); if (job.log.length > 200) job.log.shift();
+    const m = l.match(/^\[(\d+)\/(\d+)\]/); if (m) job.progress = `${m[1]}/${m[2]}`;
+  };
+  job.fn(log, () => job.status === 'cancelled')
+    .then(() => { if (job.status !== 'cancelled') job.status = 'done'; })
+    .catch(e => { log(e.message); if (job.status !== 'cancelled') job.status = 'failed'; })
+    .finally(() => { job.ended = Date.now(); runNext(); });
+}
+
+function queueFn(label, dir, fn) {
+  const job = { id: ++jobSeq, label, dir, fn, status: 'queued', log: [], progress: '', created: Date.now() };
+  jobs.push(job);
+  while (jobs.length > 20 && jobs[0].status !== 'running' && jobs[0].status !== 'queued') jobs.shift();
+  runNext();
+  return job;
+}
+
 function runNext() {
   if (jobs.some(j => j.status === 'running')) return;
   const job = jobs.find(j => j.status === 'queued');
   if (!job) return;
+  if (job.fn) return runFn(job);
   if (!fs.existsSync(PYTHON)) { job.status = 'failed'; job.log.push('Environnement Python introuvable : ' + PYTHON + ' (lancez tools/setup.bat)'); return runNext(); }
   job.status = 'running';
   job.started = Date.now();
@@ -198,6 +229,35 @@ function readBody(req) {
     req.on('data', c => { chunks.push(c); n += c.length; if (n > 4e6) req.destroy(); });
     req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (e) { reject(e); } });
   });
+}
+
+async function handlePodcasts(req, res, pathname) {
+  if (!toolsAllowed(req)) { res.writeHead(403); return res.end('tools disabled'); }
+  try {
+    if (pathname === '/api/podcasts' && req.method === 'GET') return sendJSON(res, podcasts.list());
+    if (pathname === '/api/podcasts' && req.method === 'POST') {
+      const { url, latest } = await readBody(req);
+      const sub = await podcasts.subscribe(url);
+      const n = Math.max(1, Math.min(50, parseInt(latest, 10) || 5));
+      queueFn(`Podcast · ${sub.title} (${n} derniers)`, null, (log, c) => podcasts.run(sub.id, { latest: n }, log, c));
+      return sendJSON(res, { id: sub.id, title: sub.title });
+    }
+    const m = pathname.match(/^\/api\/podcasts\/([0-9a-f]{8})(?:\/(episodes|download))?$/);
+    if (m && !m[2] && req.method === 'DELETE') { podcasts.unsubscribe(m[1]); return sendJSON(res, { ok: true }); }
+    if (m && m[2] === 'episodes' && req.method === 'GET') return sendJSON(res, await podcasts.episodes(m[1]));
+    if (m && m[2] === 'download' && req.method === 'POST') {
+      const { guids, latest } = await readBody(req);
+      const sub = podcasts.list().find(x => x.id === m[1]);
+      if (!sub) throw new Error('Abonnement introuvable');
+      const g = Array.isArray(guids) ? guids.map(String).slice(0, 50) : null;
+      queueFn(`Podcast · ${sub.title}${g ? ` (${g.length} épisode(s))` : ' (nouveautés)'}`, null,
+        (log, c) => podcasts.run(sub.id, { guids: g, latest: parseInt(latest, 10) || 5 }, log, c));
+      return sendJSON(res, { ok: true });
+    }
+    res.writeHead(404); res.end();
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(e.message);
+  }
 }
 
 async function handleJobs(req, res, pathname) {
@@ -237,6 +297,7 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api/config') return sendJSON(res, { tools: toolsAllowed(req) });
   if (pathname.startsWith('/api/jobs')) return handleJobs(req, res, pathname);
+  if (pathname.startsWith('/api/podcasts')) return handlePodcasts(req, res, pathname);
   if (pathname.startsWith('/api/phrases')) return handlePhrases(req, res, pathname);
   if (pathname === '/api/playlists') return sendJSON(res, listPlaylists());
   if (pathname === '/api/tracks') return sendJSON(res, listTracks(url.searchParams.get('dir') || ''));

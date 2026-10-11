@@ -44,7 +44,9 @@ def split_long(text, max_words=18, min_words=6):
 
 
 def jobs(folder, src, tgt, force):
-    for root, _, names in os.walk(folder):
+    # 只处理所选文件夹本身（子文件夹是独立的播放列表）
+    root = folder
+    for names in [os.listdir(root)]:
         lower = {n.lower(): n for n in names}
         for n in sorted(names):
             base, ext = os.path.splitext(n)

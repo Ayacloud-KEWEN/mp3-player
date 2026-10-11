@@ -135,6 +135,17 @@ footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
 .toolsbox .f{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--ink2)}
 .toolsbox .f span{width:110px;flex:none;font-size:13px;color:var(--ink3)}
 .toolsbox select{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.toolsbox input[type=url]{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.toolsbox .sep{border-top:1px solid var(--line);margin:4px 0 0;padding-top:10px;font-family:var(--caps);font-size:11px;letter-spacing:.12em;color:var(--gold)}
+.pod{border-top:1px solid var(--line);padding-top:8px;display:grid;gap:4px}
+.pod .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.pod .h b{flex:1;min-width:140px;font-weight:600}
+.pod .h small{color:var(--ink3);font-size:13px}
+.pod .h button,.pod .ep button{font-size:13px;color:var(--ink2);text-decoration:underline;text-underline-offset:3px}
+.pod .ep{display:flex;gap:8px;align-items:baseline;font-size:14px;padding:3px 0 3px 10px;color:var(--ink2)}
+.pod .ep span{flex:1;min-width:0}
+.pod .ep i{font-style:normal;color:var(--ink3);font-size:12px;flex:none}
+.pod .ep .ok{color:var(--gold);flex:none}
 .toolsbox input[type=checkbox]{accent-color:var(--accent);width:18px;height:18px}
 .job{border-top:1px solid var(--line);padding-top:8px;font-size:14px;display:grid;gap:2px}
 .job .h{display:flex;gap:8px;align-items:baseline}
@@ -259,6 +270,12 @@ footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
           <button class="chip" data-job="en-zh">Traduire EN → 中文</button>
           <button class="chip" data-job="fr-zh">Traduire FR → 中文</button>
         </div>
+        <div class="sep">PODCASTS</div>
+        <label class="f"><span>Lien</span><input type="url" id="podUrl" placeholder="Apple Podcasts ou flux RSS"></label>
+        <div class="f"><span>Télécharger</span><select id="podN"><option value="3">3 derniers</option><option value="5" selected>5 derniers</option><option value="10">10 derniers</option><option value="20">20 derniers</option></select>
+          <button class="chip" id="podAdd">S’abonner</button></div>
+        <div id="podList"></div>
+        <div class="sep">TÂCHES</div>
         <div id="jobList"></div>
       </div>
     </div>
@@ -629,7 +646,7 @@ function openDrawer(id){ document.body.classList.add('open'); $(id).classList.ad
 function closeDrawers(){ document.body.classList.remove('open'); document.querySelectorAll('.drawer').forEach(d => d.classList.remove('show')); }
 $('scrim').onclick = closeDrawers;
 $('titleBtn').onclick = () => { renderTracks(plName); openDrawer('libDrawer'); };
-$('menuBtn').onclick = () => { renderOpts(); if (toolsOn) { fillToolDirs(); pollJobs(); } openDrawer('setDrawer'); };
+$('menuBtn').onclick = () => { renderOpts(); if (toolsOn) { fillToolDirs(); pollJobs(); renderPods(); } openDrawer('setDrawer'); };
 $('libBack').onclick = renderPlaylists;
 function row(n, t, m, cur, onclick){ const b = document.createElement('button'); b.className = 'row' + (cur ? ' cur' : '');
   b.innerHTML = `<span class="n"></span><span class="t"></span><span class="m"></span>`;
@@ -764,15 +781,71 @@ async function pollJobs(first){
     }
     box.appendChild(d);
   });
-  // 新完成的任务：若是当前播放列表，就地更新字幕
+  // 新完成的任务：刷新播放列表；若是当前播放列表，就地更新字幕
+  let fresh = false;
   for (const j of list) {
     if (j.status !== 'done' || seenDone.has(j.id)) continue;
     seenDone.add(j.id);
-    if (!first && j.dir === plName) await refreshTracks();
+    if (first) continue;
+    fresh = true;
+    if (j.dir === plName) await refreshTracks();
   }
+  if (fresh) { playlists = await fetch('api/playlists').then(r => r.json()); fillToolDirs(); renderPods(); }
   jobsActive = list.some(j => j.status === 'running' || j.status === 'queued');
   pollT = setTimeout(pollJobs, jobsActive || $('setDrawer').classList.contains('show') ? 2000 : 15000);
 }
+// ---------- 播客订阅 ----------
+const podOpen = new Set();
+async function renderPods(){
+  let subs = [];
+  try { subs = await fetch('api/podcasts').then(r => r.json()); } catch { return; }
+  const box = $('podList'); box.innerHTML = '';
+  for (const sub of subs) {
+    const d = document.createElement('div'); d.className = 'pod';
+    d.innerHTML = '<div class="h"><b></b><small></small><button data-a="new">Nouveautés</button><button data-a="eps"></button><button data-a="del">Désabonner</button></div><div class="eps"></div>';
+    d.querySelector('b').textContent = sub.title;
+    d.querySelector('small').textContent = `${sub.count} fichier(s)`;
+    d.querySelector('[data-a=eps]').textContent = podOpen.has(sub.id) ? 'Masquer' : 'Épisodes';
+    d.querySelector('[data-a=new]').onclick = () => podPost(`api/podcasts/${sub.id}/download`, { latest: +$('podN').value });
+    d.querySelector('[data-a=eps]').onclick = () => { podOpen.has(sub.id) ? podOpen.delete(sub.id) : podOpen.add(sub.id); renderPods(); };
+    d.querySelector('[data-a=del]').onclick = async () => {
+      if (!confirm(`Se désabonner de « ${sub.title} » ? Les fichiers déjà téléchargés sont conservés.`)) return;
+      await fetch(`api/podcasts/${sub.id}`, { method:'DELETE' }); renderPods();
+    };
+    box.appendChild(d);
+    if (podOpen.has(sub.id)) podEpisodes(sub, d.querySelector('.eps'));
+  }
+}
+async function podEpisodes(sub, el){
+  el.textContent = 'Chargement…';
+  let eps;
+  try { const r = await fetch(`api/podcasts/${sub.id}/episodes`); if (!r.ok) throw new Error(await r.text()); eps = await r.json(); }
+  catch (e) { el.textContent = e.message; return; }
+  el.innerHTML = '';
+  eps.forEach(ep => {
+    const row = document.createElement('div'); row.className = 'ep';
+    row.innerHTML = '<span></span><i></i>';
+    row.querySelector('span').textContent = ep.title;
+    row.querySelector('i').textContent = ep.date || '';
+    if (ep.downloaded) { const ok = document.createElement('b'); ok.className = 'ok'; ok.textContent = '✓'; row.appendChild(ok); }
+    else { const b = document.createElement('button'); b.textContent = '↓'; b.title = 'Télécharger'; b.onclick = () => podPost(`api/podcasts/${sub.id}/download`, { guids: [ep.guid] }); row.appendChild(b); }
+    el.appendChild(row);
+  });
+}
+async function podPost(url, body){
+  const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  toast(r.ok ? 'Téléchargement ajouté aux tâches' : await r.text());
+  if (r.ok) { renderPods(); pollJobs(); }
+  return r.ok;
+}
+$('podAdd').onclick = async () => {
+  const url = $('podUrl').value.trim();
+  if (!url) return toast('Collez un lien de podcast');
+  $('podAdd').disabled = true; toast('Recherche du flux…');
+  try { if (await podPost('api/podcasts', { url, latest: +$('podN').value })) $('podUrl').value = ''; }
+  finally { $('podAdd').disabled = false; }
+};
+
 async function refreshTracks(){
   tracks = await fetch('api/tracks?dir=' + encodeURIComponent(plName)).then(r => r.json());
   await reloadSubs();

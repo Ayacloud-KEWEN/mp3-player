@@ -93,7 +93,9 @@ def main():
     a = ap.parse_args()
 
     files = []
-    for root, _, names in os.walk(a.dir):
+    # 只处理所选文件夹本身（子文件夹是独立的播放列表）
+    root = a.dir
+    for names in [os.listdir(root)]:
         for n in sorted(names):
             if os.path.splitext(n)[1].lower() in AUDIO:
                 srt = os.path.join(root, os.path.splitext(n)[0] + ".srt")
