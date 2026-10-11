@@ -99,10 +99,11 @@ article.side{max-width:1180px}
 .w{cursor:pointer;border-radius:3px}
 .w:hover{color:var(--accent)}
 .w.sel{background:var(--accent);color:var(--accent-ink)}
-.tools{display:none;position:absolute;left:-34px;top:.15em;flex-direction:column;gap:2px}
-.s:hover .tools{display:flex}
-.tools button{width:24px;height:24px;border-radius:50%;font-size:11px;color:var(--ink2);background:var(--card);border:1px solid var(--line);line-height:1}
-.tools button:hover{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+/* 句末常驻的小按钮：很淡，悬停时变深，随时可点 */
+.tools{display:inline-flex;gap:2px;margin-left:3px;vertical-align:.12em;user-select:none}
+.tools button{width:20px;height:20px;border-radius:50%;font-size:10px;line-height:1;color:var(--ink3);opacity:.45;transition:opacity .15s,background .15s,color .15s}
+.s:hover .tools button,.s.cur .tools button{opacity:.9}
+.tools button:hover{opacity:1;color:var(--accent-ink);background:var(--accent)}
 
 /* 左右对照 */
 .pa{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-bottom:26px;padding-left:34px}
@@ -191,7 +192,7 @@ article.side{max-width:1180px}
     <button class="btn" id="retrBtn" title="Traduire à nouveau tout le texte">↻ Retraduire</button>
   </div>
   <div class="scroll" id="scroll"><div id="view"></div></div>
-  <div class="kbd" id="kbd" hidden>↑ ↓ phrase précédente / suivante · Espace lire / pause · T afficher la traduction · clic sur un mot : prononciation et dictionnaires</div>
+  <div class="kbd" id="kbd" hidden>↑ ↓ phrase précédente / suivante · Espace lire / pause · T afficher la traduction · ▶ en fin de phrase ou double-clic : lire la phrase · clic sur un mot : prononciation et dictionnaires</div>
 </main>
 
 <div class="pop" id="pop" hidden>
@@ -340,7 +341,7 @@ function srcSpan(text, i){
   });
   const tools = document.createElement('span'); tools.className = 'tools';
   tools.innerHTML = '<button data-a="play" title="Lire cette phrase">▶</button>' + (mode === 'orig' ? '<button data-a="tr" title="Traduction (T)">文</button>' : '');
-  s.prepend(tools);
+  s.append(tools);
   return s;
 }
 function zhSpan(text, i){ const z = document.createElement('span'); z.className = 'zs'; z.dataset.i = i; z.textContent = text; return z; }
@@ -404,6 +405,12 @@ $('view').addEventListener('click', e => {
   setCur(i);
   const w = e.target.closest('.w');
   if (w) openPop(w, i);
+});
+// 双击句子：朗读整句（不弹查词窗、不选中文字）
+$('view').addEventListener('dblclick', e => {
+  const s = e.target.closest('.s'); if (!s || e.target.closest('button')) return;
+  getSelection()?.removeAllRanges(); closePop();
+  setCur(+s.dataset.i); playFrom(+s.dataset.i, false);
 });
 
 // ---------- 朗读 ----------
