@@ -45,6 +45,8 @@ const phrases = require('./phrases')({
   mediaDir: MEDIA_DIR, python: PYTHON, toolsDir: TOOLS_DIR,
   voice: process.env.PIPER_VOICE || 'fr_FR-tom-medium',
   speaker: process.env.PIPER_SPEAKER ? parseInt(process.env.PIPER_SPEAKER, 10) : null,
+  // 其他语言的查词朗读声音
+  voices: { en: { voice: process.env.PIPER_VOICE_EN || 'en_GB-alan-medium' } },
 });
 
 const collator = new Intl.Collator('zh', { numeric: true, sensitivity: 'base' });
@@ -95,7 +97,9 @@ function listTracks(dir) {
         const m = name.match(/^(.*)\.([a-z]{2})\.(srt|vtt|lrc)$/i);
         if (m && m[1].toLowerCase() === base.toLowerCase()) tr[m[2].toLowerCase()] = dir + '/' + name;
       }
-      return { title: base, file: dir + '/' + f, sub, tr };
+      // 逐词时间：<名>.words.json（由 gen_subs.py 生成）
+      const wj = lower.get((base + '.words.json').toLowerCase());
+      return { title: base, file: dir + '/' + f, sub, tr, words: wj ? dir + '/' + wj : null };
     });
 }
 
@@ -276,6 +280,15 @@ async function handleJobs(req, res, pathname) {
   res.writeHead(404); res.end();
 }
 
+async function handleSay(req, res) {
+  try {
+    const { text, lang } = await readBody(req);
+    sendJSON(res, { file: await phrases.say(text, lang) });
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(e.message);
+  }
+}
+
 async function handlePhrases(req, res, pathname) {
   try {
     if (req.method === 'GET' && pathname === '/api/phrases') return sendJSON(res, phrases.get());
@@ -299,13 +312,14 @@ const server = http.createServer((req, res) => {
   if (pathname.startsWith('/api/jobs')) return handleJobs(req, res, pathname);
   if (pathname.startsWith('/api/podcasts')) return handlePodcasts(req, res, pathname);
   if (pathname.startsWith('/api/phrases')) return handlePhrases(req, res, pathname);
+  if (pathname === '/api/say' && req.method === 'POST') return handleSay(req, res);
   if (pathname === '/api/playlists') return sendJSON(res, listPlaylists());
   if (pathname === '/api/tracks') return sendJSON(res, listTracks(url.searchParams.get('dir') || ''));
 
   if (pathname.startsWith('/media/')) {
     const file = safeJoin(MEDIA_DIR, pathname.slice(7));
     if (!file) { res.writeHead(403); return res.end(); }
-    const isSub = /\.(srt|vtt|lrc)$/i.test(file);
+    const isSub = /\.(srt|vtt|lrc|json)$/i.test(file);
     return sendFile(req, res, file, isSub ? 'no-cache' : 'public, max-age=86400');
   }
 

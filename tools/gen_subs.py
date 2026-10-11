@@ -3,7 +3,7 @@
 用法: python gen_subs.py <音频目录> [--model large-v3] [--lang en] [--force] [--cpu]
 已有同名 .srt 的文件会跳过（除非 --force）。模型存放在 tools/models/，首次使用自动下载。
 """
-import argparse, os, re, sys
+import argparse, json, os, re, sys
 import models  # 设置模型目录与 CUDA 路径
 from faster_whisper import WhisperModel
 import shutil, subprocess
@@ -142,6 +142,13 @@ def main():
         with open(tmp, "w", encoding="utf-8") as f:
             f.write("\n".join(out))
         os.replace(tmp, srt)
+        # 逐词时间（播放器"原声"查词用）：[[开始, 结束, "词"], ...]
+        wj = srt[:-4] + ".words.json"
+        with open(wj + ".part", "w", encoding="utf-8") as f:
+            json.dump({"lang": info.language,
+                       "words": [[round(w.start, 2), round(w.end, 2), w.word.strip()] for w in words if w.word.strip()]},
+                      f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(wj + ".part", wj)
         print(f"    -> {n} phrases, langue {info.language}", flush=True)
 
 

@@ -39,6 +39,13 @@ WantedBy=multi-user.target
 - 收藏句子 ✦，之后一键回到并复读
 - 记住播放列表/曲目/进度/设置；锁屏与耳机线控（上/下一句）；定时停止；明暗主题
 
+## 查单词发音
+播放时点一下**当前这句**字幕 → 句子拆成单词（并暂停）；点单词弹出卡片：
+- ▶ Original：从录音中截出这个词的原声（需要 `<名>.words.json`，由新版生成字幕工具自动生成；旧字幕需重新生成一次）
+- ▶ Voix / ▶ Lent：Piper 标准朗读（法语 tom，英语 en_GB-alan，`PIPER_VOICE_EN` 可换）
+- 链接：Google 翻译、维基词典、Forvo、WordReference、Larousse
+- 法语可一键把单词加入「Vocabulaire」分组，或把整句加入日常句子
+
 ## 日常句子（随时记录法语句子并跟读）
 播放列表抽屉顶部的「✎ Gérer les phrases du quotidien」：
 - 输入法语句子 → 自动用 Piper 男声合成；每个分组生成一个播放列表（名称前带 ✦），可单句复读、慢速、跟读、盲听

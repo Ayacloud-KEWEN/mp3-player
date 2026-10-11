@@ -154,6 +154,21 @@ footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
 .job .st.running{color:var(--accent)} .job .st.failed{color:#b3412e} .job .st.done{color:var(--gold)}
 .job pre{margin:0;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--ink3);white-space:pre-wrap;word-break:break-all}
 .job button{font-size:13px;color:var(--ink2);text-decoration:underline}
+.cue.words .w{border-radius:5px;padding:0 1px;cursor:pointer;border-bottom:1px dotted var(--ink3)}
+.cue.words .w:active,.cue.words .w.sel{background:var(--accent);color:var(--accent-ink);border-bottom-color:transparent}
+.wd-head{padding:18px 20px 4px;display:flex;align-items:baseline;gap:12px}
+.wd-head b{font-size:30px;font-weight:600;letter-spacing:.01em}
+.wd-head small{font-family:var(--caps);font-size:11px;letter-spacing:.12em;color:var(--ink3)}
+.wd-ctx{padding:0 20px 12px;color:var(--ink3);font-size:15px;font-style:italic;line-height:1.4}
+.wd-ctx em{color:var(--ink);font-style:normal;background:var(--hl);border-radius:4px;padding:0 2px}
+.wd-play{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 20px 14px}
+.wd-play button{height:52px;border:1px solid var(--line);border-radius:12px;font-size:15px;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.wd-play button small{font-size:11px;color:var(--ink3);font-family:var(--caps);letter-spacing:.06em}
+.wd-play button:active{background:var(--hl)}
+.wd-play button:disabled{opacity:.35}
+.wd-links{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 14px}
+.wd-links a{padding:7px 12px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--ink2);text-decoration:none}
+.wd-add{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 20px}
 .ph-groups{display:flex;gap:8px;overflow-x:auto;padding:4px 20px 10px;scrollbar-width:none}
 .ph-groups .chip{flex:none}
 .ph-bar{display:flex;align-items:center;gap:14px;padding:0 20px 10px;font-size:14px;color:var(--ink2)}
@@ -298,6 +313,18 @@ footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
   <div class="body" id="phList"></div>
 </section>
 
+<section class="drawer" id="wordDrawer">
+  <div class="wd-head"><b id="wdWord"></b><small id="wdLang"></small></div>
+  <div class="wd-ctx" id="wdCtx"></div>
+  <div class="wd-play">
+    <button id="wdOrig">▶ Original<small>AUDIO</small></button>
+    <button id="wdSay">▶ Voix<small>PIPER</small></button>
+    <button id="wdSlow">▶ Lent<small>× 0.6</small></button>
+  </div>
+  <div class="wd-links" id="wdLinks"></div>
+  <div class="wd-add" id="wdAdd"></div>
+</section>
+
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="metadata"></audio>
 
@@ -317,6 +344,7 @@ S.sleep = 0;
 // ---------- 状态 ----------
 let playlists = [], tracks = [], plName = store.get('pl', null), idx = -1;
 let cues = [], cueIdx = -1, trCues = [];
+let words = null, subLang = '';   // 逐词时间 [[start,end,word]]，字幕语言
 let loop = null;          // {a, b, kind:'cue'|'ab'|'tail', count}
 let abPending = null;     // 已设置 A，等待 B
 let shadow = false, blind = false;
@@ -375,9 +403,11 @@ async function loadPlaylists(){
 // 加载原文与译文字幕（译文优先用设置里的语言，没有就用现有的任一种）
 let trLangNow = '';
 async function loadSubs(t){
-  cues = []; cueIdx = -1; trCues = []; trLangNow = '';
+  cues = []; cueIdx = -1; trCues = []; trLangNow = ''; words = null; subLang = '';
   const get = f => fetch('media/' + enc(f)).then(r => r.text()).then(parseSubs);
   if (t.sub) { try { cues = await get(t.sub); } catch {} }
+  if (t.words && cues.length) { try { const w = await fetch('media/' + enc(t.words)).then(r => r.json()); words = w.words; subLang = w.lang || ''; } catch {} }
+  if (!subLang) subLang = guessLang(cues);
   const langs = Object.keys(t.tr || {});
   trLangNow = langs.includes(S.trLang) ? S.trLang : (langs[0] || '');
   if (trLangNow && cues.length) { try { trCues = await get(t.tr[trLangNow]); } catch {} }
@@ -459,6 +489,7 @@ function centerCue(){
 function setCue(i, force){
   if (i === cueIdx && !force) return;
   const box = $('transcript');
+  exitWordMode();
   box.children[cueIdx]?.classList.remove('on', 'reveal');
   cueIdx = i;
   const el = box.children[i];
@@ -468,6 +499,13 @@ $('transcript').addEventListener('click', e => {
   const el = e.target.closest('.cue'); if (!el || longPressed) return;
   if (blind && !el.classList.contains('reveal')) { el.classList.add('reveal'); return; }
   const i = +el.dataset.i;
+  // 点当前句：拆成单词可点（查发音）；再点单词弹出查词卡片
+  if (i === cueIdx) {
+    const w = e.target.closest('.w');
+    if (w) return openWord(el, +w.dataset.k);
+    if (!el.classList.contains('words')) { wordMode(el); return; }
+  }
+  exitWordMode();
   if (loop && loop.kind === 'cue') setLoopCue(i); else seek(cues[i].start);
   if (audio.paused) play();
 });
@@ -850,6 +888,132 @@ async function refreshTracks(){
   tracks = await fetch('api/tracks?dir=' + encodeURIComponent(plName)).then(r => r.json());
   await reloadSubs();
   toast('Sous-titres mis à jour');
+}
+
+// ---------- 查词：单词发音 ----------
+const ELISION = /^(l|d|j|m|n|s|t|c|qu|jusqu|lorsqu|puisqu|presqu)['’]/i;
+const STOP = { fr: /^(le|la|les|des|une|est|et|je|vous|nous|que|qui|pas|pour|dans|sur|avec|il|elle|ce|ça|du|au|on|mais|très)$/i,
+               en: /^(the|and|is|was|you|he|she|it|of|to|in|that|for|with|his|her|they|said|had|have|not|but)$/i };
+function guessLang(cs){
+  let fr = 0, en = 0;
+  for (const c of cs.slice(0, 80)) for (const t of c.text.toLowerCase().split(/[^a-zàâäçéèêëîïôöûùüÿœæ'’]+/)) {
+    if (STOP.fr.test(t) || /[àâçéèêëîïôûùœ]/.test(t)) fr++;
+    if (STOP.en.test(t)) en++;
+  }
+  return fr > en ? 'fr' : en ? 'en' : '';
+}
+// 单词：显示用原样；朗读用去掉首尾标点的词（保留 l'école 的省音）；查词典用省音之后的词
+const clean = t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+const lookupOf = t => clean(t).replace(ELISION, '');
+let wm = null;   // 查词模式中的句子 {el, i, toks}
+function wordMode(el){
+  if (!audio.paused) pause();
+  const i = +el.dataset.i, toks = cues[i].text.split(/\s+/).filter(Boolean);
+  const txt = el.firstChild;
+  const frag = document.createDocumentFragment();
+  toks.forEach((t, k) => {
+    if (k) frag.append(' ');
+    if (!clean(t)) { frag.append(t); return; }
+    const sp = document.createElement('span'); sp.className = 'w'; sp.dataset.k = k; sp.textContent = t; frag.append(sp);
+  });
+  const box = document.createElement('span'); box.className = 'ws'; box.append(frag);
+  el.replaceChild(box, txt);
+  el.classList.add('words');
+  wm = { el, i, toks };
+  toast('Touchez un mot');
+}
+function exitWordMode(){
+  if (!wm) return;
+  const { el, i } = wm; wm = null;
+  const box = el.querySelector('.ws');
+  if (box) el.replaceChild(document.createTextNode(cues[i].text), box);
+  el.classList.remove('words');
+}
+// 把句子里第 k 个词对应到逐词时间。Whisper 的分词和字幕不同（J + 'ai、Hauts + -de + -France），
+// 所以按字母对齐：把本句文字和 Whisper 的词都去掉空白、拼成字符串，看第 k 个词覆盖了哪些 Whisper 词
+function wordTime(i, k){
+  if (!words) return null;
+  const c = cues[i], end = isFinite(c.end) ? c.end : c.start + 30;
+  const ws = words.filter(w => w[1] > c.start - 1 && w[0] < end + 1);
+  if (!ws.length) return null;
+  const norm = t => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  let wsStr = '', wsAt = [];
+  ws.forEach((w, j) => { const n = norm(w[2]); for (let x = 0; x < n.length; x++) wsAt.push(j); wsStr += n; });
+  let tokStr = '', a = 0, b = 0;
+  wm.toks.forEach((t, j) => { if (j === k) a = tokStr.length; tokStr += norm(t); if (j === k) b = tokStr.length; });
+  if (a === b) return null;
+  // 时间窗口会多带进前后句的词：找本句在 Whisper 字符串中的起点
+  let off = -1;
+  for (const len of [24, 12, 6]) { off = wsStr.indexOf(tokStr.slice(0, len)); if (off >= 0) break; }
+  if (off < 0) return null;
+  const hit = wsAt.slice(off + a, off + b);
+  if (!hit.length) return null;
+  return [ws[hit[0]][0], ws[hit[hit.length - 1]][1]];
+}
+const wordAudio = new Audio();
+let wordStop = null, wordRaf = 0;
+function playSpan(src, a, b){
+  cancelAnimationFrame(wordRaf); wordAudio.pause();
+  if (!wordAudio.src.endsWith(src)) wordAudio.src = src;
+  wordAudio.playbackRate = 1;
+  const go = () => {
+    wordAudio.currentTime = Math.max(0, a); wordStop = b;
+    wordAudio.play().catch(() => {});
+    const chk = () => { if (wordStop != null && wordAudio.currentTime >= wordStop) { wordAudio.pause(); wordStop = null; } else wordRaf = requestAnimationFrame(chk); };
+    wordRaf = requestAnimationFrame(chk);
+  };
+  wordAudio.readyState >= 1 ? go() : wordAudio.addEventListener('loadedmetadata', go, { once:true });
+}
+async function sayWord(text, rate){
+  const r = await fetch('api/say', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ text, lang: subLang }) });
+  if (!r.ok) return toast(await r.text());
+  const { file } = await r.json();
+  cancelAnimationFrame(wordRaf); wordStop = null;
+  wordAudio.src = 'media/' + enc(file); wordAudio.playbackRate = rate; wordAudio.preservesPitch = true;
+  wordAudio.play().catch(() => {});
+}
+function openWord(el, k){
+  const tok = wm.toks[k], say = clean(tok), look = lookupOf(tok), lang = subLang || 'fr';
+  el.querySelectorAll('.w.sel').forEach(x => x.classList.remove('sel'));
+  el.querySelector(`.w[data-k="${k}"]`)?.classList.add('sel');
+  $('wdWord').textContent = say;
+  $('wdLang').textContent = ({ fr:'FRANÇAIS', en:'ANGLAIS' })[lang] || lang.toUpperCase();
+  const ctx = $('wdCtx'); ctx.innerHTML = '';
+  wm.toks.forEach((t, j) => { if (j) ctx.append(' '); if (j === k) { const m = document.createElement('em'); m.textContent = t; ctx.append(m); } else ctx.append(t); });
+  // 原声：从录音里截出这个词（前后各留一点，避免吞音）
+  const wt = wordTime(wm.i, k);
+  $('wdOrig').disabled = !wt;
+  $('wdOrig').onclick = () => wt && playSpan('media/' + enc(tracks[idx].file), wt[0] - 0.08, wt[1] + 0.12);
+  $('wdSay').onclick = () => sayWord(say, 1);
+  $('wdSlow').onclick = () => sayWord(say, 0.6);
+  const q = encodeURIComponent(look.toLowerCase());
+  const L = lang === 'en'
+    ? [['Google Traduction', `https://translate.google.com/?sl=en&tl=zh-CN&text=${q}&op=translate`], ['Wiktionary', `https://en.wiktionary.org/wiki/${q}`],
+       ['Forvo', `https://forvo.com/word/${q}/#en`], ['WordReference', `https://www.wordreference.com/enfr/${q}`]]
+    : [['Google Traduction', `https://translate.google.com/?sl=fr&tl=zh-CN&text=${q}&op=translate`], ['Wiktionnaire', `https://fr.wiktionary.org/wiki/${q}`],
+       ['Forvo', `https://forvo.com/word/${q}/#fr`], ['WordReference', `https://www.wordreference.com/fren/${q}`], ['Larousse', `https://www.larousse.fr/dictionnaires/francais/${q}`]];
+  const links = $('wdLinks'); links.innerHTML = '';
+  L.forEach(([n, u]) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener'; a.textContent = n; links.appendChild(a); });
+  // 加入日常句子（仅法语）：单词进「Vocabulaire」分组，整句进当前分组
+  const add = $('wdAdd'); add.innerHTML = '';
+  if (lang === 'fr') {
+    const b1 = document.createElement('button'); b1.className = 'chip'; b1.textContent = '✦ Mot → Vocabulaire';
+    b1.onclick = () => addToPhrases(say, 'Vocabulaire');
+    const b2 = document.createElement('button'); b2.className = 'chip'; b2.textContent = '✦ Phrase → Quotidien';
+    b2.onclick = () => addToPhrases(cues[wm.i].text, null);
+    add.append(b1, b2);
+  }
+  openDrawer('wordDrawer');
+  if (wt) $('wdOrig').click(); else sayWord(say, 1);
+}
+async function addToPhrases(text, groupName){
+  let d; try { d = await fetch('api/phrases').then(r => r.json()); } catch { return toast('Serveur injoignable'); }
+  let g = groupName ? d.groups.find(x => x.name === groupName) : (d.groups.find(x => x.id === store.get('phGroup', null)) || d.groups[0]);
+  if (!g) { g = { id: rid(), name: groupName, items: [] }; d.groups.push(g); }
+  if (g.items.some(it => it.text.toLowerCase() === text.toLowerCase())) return toast('Déjà dans « ' + g.name + ' »');
+  g.items.push({ id: rid(), text, note: '', created: Date.now() });
+  const r = await fetch('api/phrases', { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ groups: d.groups }) });
+  toast(r.ok ? 'Ajouté à « ' + g.name + ' »' : await r.text());
 }
 
 // ---------- 日常句子：分组管理 ----------

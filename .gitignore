@@ -15,5 +15,6 @@ fra/
 *.wav
 *.m4a
 *.srt
+*.words.json
 *.vtt
 *.lrc

@@ -9,7 +9,7 @@ const PREFIX = '✦ ';
 const LEAD = 0.4;   // 开头留白（秒）
 const GAP = 1.0;    // 句间停顿（秒）
 
-module.exports = function createPhrases({ mediaDir, python, toolsDir, voice, speaker }) {
+module.exports = function createPhrases({ mediaDir, python, toolsDir, voice, speaker, voices = {} }) {
   const root = path.join(mediaDir, '.phrases');
   const dataFile = path.join(root, 'phrases.json');
   const cacheDir = path.join(root, 'cache');
@@ -54,10 +54,11 @@ module.exports = function createPhrases({ mediaDir, python, toolsDir, voice, spe
   }
 
   // ---------- 语音合成 ----------
-  function synth(texts) {
-    const todo = [...new Set(texts)].filter(t => !fs.existsSync(cacheWav(t)));
+  // texts → WAV。v/spk/out 默认为日常句子的声音与缓存位置
+  function synth(texts, v = voice, spk = speaker, out = cacheWav) {
+    const todo = [...new Set(texts)].filter(t => !fs.existsSync(out(t)));
     if (!todo.length) return Promise.resolve();
-    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.mkdirSync(path.dirname(out(todo[0])), { recursive: true });
     return new Promise((resolve, reject) => {
       if (!fs.existsSync(python)) return reject(new Error('Python introuvable : ' + python));
       const p = spawn(python, ['-u', path.join(toolsDir, 'tts.py')], { cwd: toolsDir, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
@@ -65,7 +66,7 @@ module.exports = function createPhrases({ mediaDir, python, toolsDir, voice, spe
       p.stderr.on('data', d => { err += d; if (err.length > 4000) err = err.slice(-4000); });
       p.on('error', reject);
       p.on('close', code => code === 0 ? resolve() : reject(new Error(err.split('\n').filter(Boolean).slice(-2).join(' ') || 'tts failed')));
-      p.stdin.end(JSON.stringify({ voice, speaker, items: todo.map(t => ({ text: t, out: cacheWav(t) })) }));
+      p.stdin.end(JSON.stringify({ voice: v, speaker: spk, items: todo.map(t => ({ text: t, out: out(t) })) }));
     });
   }
 
@@ -171,6 +172,17 @@ module.exports = function createPhrases({ mediaDir, python, toolsDir, voice, spe
       if (!text) throw new Error('Texte vide');
       await synth([text]);
       return path.relative(mediaDir, cacheWav(text)).split(path.sep).join('/');
+    },
+    // 查词朗读：按语言选声音，缓存在 .phrases/say/ 下（不随日常句子清理）
+    async say(text, lang) {
+      text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+      if (!text) throw new Error('Texte vide');
+      const v = lang === 'fr' ? { voice, speaker } : voices[lang];
+      if (!v) throw new Error('Langue non prise en charge : ' + lang);
+      const key = v.voice + (v.speaker != null ? '#' + v.speaker : '');
+      const out = t => path.join(root, 'say', crypto.createHash('sha1').update(key + '\n' + t).digest('hex').slice(0, 16) + '.wav');
+      await synth([text], v.voice, v.speaker ?? null, out);
+      return path.relative(mediaDir, out(text)).split(path.sep).join('/');
     },
     // 作为播放列表出现
     playlists: () => data.groups.filter(g => builds[g.id]?.file && g.items.length)
