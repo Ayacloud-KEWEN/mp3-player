@@ -143,6 +143,28 @@ footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
 .job .st.running{color:var(--accent)} .job .st.failed{color:#b3412e} .job .st.done{color:var(--gold)}
 .job pre{margin:0;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--ink3);white-space:pre-wrap;word-break:break-all}
 .job button{font-size:13px;color:var(--ink2);text-decoration:underline}
+.ph-groups{display:flex;gap:8px;overflow-x:auto;padding:4px 20px 10px;scrollbar-width:none}
+.ph-groups .chip{flex:none}
+.ph-bar{display:flex;align-items:center;gap:14px;padding:0 20px 10px;font-size:14px;color:var(--ink2)}
+.ph-bar button{color:var(--ink2);text-decoration:underline;text-underline-offset:3px}
+.ph-bar .st{margin-left:auto;font-family:var(--caps);font-size:11px;letter-spacing:.08em;color:var(--ink3)}
+.ph-bar .st.building{color:var(--accent)} .ph-bar .st.error{color:#b3412e}
+.ph-add{display:flex;gap:8px;padding:0 20px 12px;align-items:flex-end}
+.ph-add textarea,.ph-item textarea{flex:1;font:inherit;font-size:18px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;resize:none;min-height:44px;line-height:1.35}
+.ph-add textarea:focus,.ph-item textarea:focus{outline:1px solid var(--gold);border-color:var(--gold)}
+.ph-add .go{flex:none;height:44px;padding:0 16px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:15px}
+.ph-item{border-top:1px solid var(--line);padding:10px 12px;display:grid;gap:6px}
+.ph-item .tx{font-size:18px;line-height:1.4}
+.ph-item .acts{display:flex;align-items:center;gap:4px;color:var(--ink3)}
+.ph-item .acts button{min-width:34px;height:30px;border-radius:8px;font-size:15px;color:var(--ink2)}
+.ph-item .acts button:active{background:var(--hl)}
+.ph-item .acts .del.arm{color:#fff;background:#b3412e;padding:0 8px}
+.ph-item .acts select{font:inherit;font-size:13px;color:var(--ink2);background:transparent;border:1px solid var(--line);border-radius:8px;padding:3px 4px;max-width:140px;margin-left:auto}
+.ph-item .row2{display:flex;gap:8px;justify-content:flex-end}
+.ph-item .row2 button{font-size:14px;padding:4px 12px;border-radius:8px;border:1px solid var(--line)}
+.ph-item .row2 .ok{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ph-empty{padding:16px 20px;color:var(--ink3);font-size:15px}
+.row.special .t{font-style:italic;color:var(--accent)}
 .toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));transform:translate(-50%,-10px);background:var(--ink);color:var(--bg);
   padding:8px 16px;border-radius:999px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:20;white-space:nowrap}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -249,6 +271,14 @@ footer{max-width:720px;width:100%;margin:0 auto;padding:6px 16px 14px}
       · Clavier : Espace lecture/pause, ←/→ phrase précédente/suivante, R répéter, S ralenti, A boucle A-B.
     </div>
   </div></div>
+</section>
+
+<section class="drawer" id="phDrawer">
+  <h3>PHRASES DU QUOTIDIEN<span class="sp"></span><button id="phNewGroup">+ Groupe</button></h3>
+  <div class="ph-groups" id="phGroups"></div>
+  <div class="ph-bar"><button id="phPlay">▶ Écouter</button><button id="phRename">Renommer</button><button id="phDelGroup">Supprimer</button><span class="st" id="phStatus"></span></div>
+  <div class="ph-add"><textarea id="phInput" rows="1" lang="fr" placeholder="Écrire une phrase en français…" autocapitalize="sentences"></textarea><button class="go" id="phAdd">Ajouter</button></div>
+  <div class="body" id="phList"></div>
 </section>
 
 <div class="toast" id="toast"></div>
@@ -607,6 +637,8 @@ function row(n, t, m, cur, onclick){ const b = document.createElement('button');
 function renderPlaylists(){
   $('libHead').textContent = 'LISTES DE LECTURE'; $('libBack').hidden = true;
   const body = $('libBody'); body.innerHTML = '';
+  const m = row('✎', 'Gérer les phrases du quotidien', '', false, () => { closeDrawers(); openPhrases(); });
+  m.classList.add('special'); body.appendChild(m);
   playlists.forEach((p, i) => body.appendChild(row(toRoman(i+1), p.name, p.count + ' pistes', p.name === plName, () => renderTracks(p.name))));
 }
 async function renderTracks(name){
@@ -679,7 +711,7 @@ function setMediaSession(){
 
 // ---------- 键盘 ----------
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
   const k = e.key.toLowerCase();
   if (k === ' ') { e.preventDefault(); toggle(); }
   else if (k === 'arrowleft') prevSentence();
@@ -702,7 +734,7 @@ async function initTools(){
 function fillToolDirs(){
   const sel = $('tDir'), cur = sel.value || plName;
   sel.innerHTML = '';
-  playlists.forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p.name; sel.appendChild(o); });
+  playlists.filter(p => !p.phrases).forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p.name; sel.appendChild(o); });
   sel.value = playlists.some(p => p.name === cur) ? cur : plName;
 }
 document.querySelectorAll('[data-job]').forEach(b => b.onclick = async () => {
@@ -746,6 +778,145 @@ async function refreshTracks(){
   await reloadSubs();
   toast('Sous-titres mis à jour');
 }
+
+// ---------- 日常句子：分组管理 ----------
+let ph = null, phGid = store.get('phGroup', null), phPoll = null;
+const phPreview = new Audio();
+const rid = () => [...crypto.getRandomValues(new Uint8Array(5))].map(b => b.toString(16).padStart(2, '0')).join('');
+const phGroup = () => ph.groups.find(g => g.id === phGid) || ph.groups[0];
+
+async function openPhrases(){
+  try { ph = await fetch('api/phrases').then(r => r.json()); } catch { return toast('Serveur injoignable'); }
+  if (!ph.groups.some(g => g.id === phGid)) phGid = ph.groups[0].id;
+  renderPhrases(); openDrawer('phDrawer');
+}
+// 保存整份数据；服务器只重新合成内容有变化的分组
+async function phSave(){
+  const r = await fetch('api/phrases', { method:'PUT', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ groups: ph.groups }) });
+  if (!r.ok) return toast(await r.text());
+  ph = await r.json(); renderPhrases(); phWatch();
+}
+// 合成进行中：轮询状态
+function phWatch(){
+  clearTimeout(phPoll);
+  phSync();
+  if (!Object.values(ph.status).some(s => s.status === 'building')) return;
+  phPoll = setTimeout(async () => {
+    try { ph = await fetch('api/phrases').then(r => r.json()); } catch {}
+    renderPhBar(); phWatch();
+  }, 1500);
+}
+// 若正在播放的分组已有新的合成结果（文件名不同），就地换上新音频；也同步播放列表（改名等）
+async function phSync(){
+  playlists = await fetch('api/playlists').then(r => r.json());
+  const cur = tracks[idx];
+  if (!cur?.phrases) return;
+  const g = ph.groups.find(x => x.id === cur.phrases), st = g && ph.status[g.id];
+  if (!g || !st?.file || cur.file.includes(st.file)) return;
+  const t = audio.currentTime, playing = !audio.paused;
+  plName = '✦ ' + g.name; store.set('pl', plName); $('plName').textContent = plName;
+  tracks = await fetch('api/tracks?dir=' + encodeURIComponent(plName)).then(r => r.json());
+  if (tracks.length) await loadTrack(0, Math.min(t, 1e6), playing);
+}
+const PH_ST = { building:'GÉNÉRATION…', error:'ERREUR', idle:'PRÊT' };
+function renderPhBar(){
+  const g = phGroup(), st = ph.status[g.id] || { status:'idle' }, el = $('phStatus');
+  el.className = 'st ' + st.status;
+  el.textContent = g.items.length ? PH_ST[st.status] : '';
+  el.title = st.error || '';
+  $('phPlay').hidden = !g.items.length || !st.file;
+}
+function renderPhrases(){
+  phGid = phGroup().id; store.set('phGroup', phGid);
+  const gl = $('phGroups'); gl.innerHTML = '';
+  ph.groups.forEach(g => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (g.id === phGid ? ' on' : '');
+    b.textContent = `${g.name} · ${g.items.length}`;
+    b.onclick = () => { phGid = g.id; renderPhrases(); };
+    gl.appendChild(b);
+  });
+  renderPhBar();
+  const g = phGroup(), list = $('phList'); list.innerHTML = '';
+  if (!g.items.length) list.innerHTML = '<div class="ph-empty">Aucune phrase dans ce groupe. Écrivez-en une ci-dessus.</div>';
+  g.items.forEach((it, i) => list.appendChild(phItem(g, it, i)));
+}
+function phItem(g, it, i){
+  const d = document.createElement('div'); d.className = 'ph-item';
+  const tx = document.createElement('div'); tx.className = 'tx'; tx.textContent = it.text; tx.lang = 'fr';
+  const acts = document.createElement('div'); acts.className = 'acts';
+  const btn = (label, title, fn) => { const b = document.createElement('button'); b.textContent = label; b.title = title; b.onclick = fn; acts.appendChild(b); return b; };
+  btn('▶', 'Écouter', () => phListen(it.text));
+  btn('✎', 'Modifier', () => phEdit(d, g, it));
+  btn('↑', 'Monter', () => { if (i > 0) { g.items.splice(i - 1, 0, g.items.splice(i, 1)[0]); phSave(); } });
+  btn('↓', 'Descendre', () => { if (i < g.items.length - 1) { g.items.splice(i + 1, 0, g.items.splice(i, 1)[0]); phSave(); } });
+  // 删除需要点两次，防止误触
+  const del = btn('✕', 'Supprimer', () => {
+    if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = 'Supprimer ?'; setTimeout(() => { del.classList.remove('arm'); del.textContent = '✕'; }, 2500); return; }
+    g.items.splice(i, 1); phSave();
+  });
+  if (ph.groups.length > 1) {
+    const sel = document.createElement('select');
+    sel.innerHTML = '<option value="">Déplacer…</option>';
+    ph.groups.filter(x => x.id !== g.id).forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = '→ ' + x.name; sel.appendChild(o); });
+    sel.onchange = () => { const to = ph.groups.find(x => x.id === sel.value); if (!to) return; to.items.push(g.items.splice(i, 1)[0]); phSave(); toast('Déplacée vers ' + to.name); };
+    acts.appendChild(sel);
+  }
+  d.append(tx, acts);
+  return d;
+}
+function phEdit(d, g, it){
+  d.innerHTML = '';
+  const ta = document.createElement('textarea'); ta.value = it.text; ta.lang = 'fr'; ta.rows = 2;
+  const r2 = document.createElement('div'); r2.className = 'row2';
+  const cancel = document.createElement('button'); cancel.textContent = 'Annuler'; cancel.onclick = renderPhrases;
+  const ok = document.createElement('button'); ok.className = 'ok'; ok.textContent = 'Enregistrer';
+  ok.onclick = () => { const v = ta.value.replace(/\s+/g, ' ').trim(); if (!v) return; it.text = v; phSave(); };
+  r2.append(cancel, ok); d.append(ta, r2); ta.focus();
+}
+async function phListen(text){
+  toast('Synthèse…');
+  const r = await fetch('api/phrases/preview', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ text }) });
+  if (!r.ok) return toast(await r.text());
+  const { file } = await r.json();
+  if (!audio.paused) pause();
+  phPreview.src = 'media/' + enc(file); phPreview.playbackRate = S.rate; phPreview.play().catch(() => {});
+}
+function phAdd(){
+  const v = $('phInput').value.replace(/\s+/g, ' ').trim();
+  if (!v) return;
+  phGroup().items.push({ id: rid(), text: v, note: '', created: Date.now() });
+  $('phInput').value = ''; phGrow(); phSave();
+}
+const phGrow = () => { const t = $('phInput'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; };
+$('phInput').addEventListener('input', phGrow);
+$('phInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); phAdd(); } });
+$('phAdd').onclick = phAdd;
+$('phNewGroup').onclick = () => {
+  const name = prompt('Nom du nouveau groupe :', '');
+  if (!name?.trim()) return;
+  const g = { id: rid(), name: name.trim(), items: [] };
+  ph.groups.push(g); phGid = g.id; phSave();
+};
+$('phRename').onclick = () => {
+  const g = phGroup(), name = prompt('Nouveau nom du groupe :', g.name);
+  if (!name?.trim() || name.trim() === g.name) return;
+  g.name = name.trim(); phSave();
+};
+$('phDelGroup').onclick = () => {
+  const g = phGroup();
+  if (!confirm(g.items.length ? `Supprimer le groupe « ${g.name} » et ses ${g.items.length} phrases ?` : `Supprimer le groupe « ${g.name} » ?`)) return;
+  ph.groups = ph.groups.filter(x => x !== g);
+  if (!ph.groups.length) ph.groups.push({ id: rid(), name: 'Quotidien', items: [] });
+  phGid = ph.groups[0].id; phSave();
+};
+$('phPlay').onclick = async () => {
+  const name = '✦ ' + phGroup().name;
+  playlists = await fetch('api/playlists').then(r => r.json());
+  if (!playlists.some(p => p.name === name)) return toast('Audio en cours de génération…');
+  closeDrawers(); await openPlaylist(name, 0, 0, true);
+};
 
 setRate(S.rate);
 loadPlaylists().then(initTools);

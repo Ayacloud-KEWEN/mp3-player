@@ -39,6 +39,19 @@ WantedBy=multi-user.target
 - 收藏句子 ✦，之后一键回到并复读
 - 记住播放列表/曲目/进度/设置；锁屏与耳机线控（上/下一句）；定时停止；明暗主题
 
+## 日常句子（随时记录法语句子并跟读）
+播放列表抽屉顶部的「✎ Gérer les phrases du quotidien」：
+- 输入法语句子 → 自动用 Piper 男声合成；每个分组生成一个播放列表（名称前带 ✦），可单句复读、慢速、跟读、盲听
+- 分组：+ Groupe 新建，可改名、删除；句子可编辑、试听、上下移动、移到其他分组
+- 数据保存在 `MEDIA_DIR/.phrases/`，所有设备共享
+
+树莓派上首次使用前安装 Piper（约 1 分钟）：
+```bash
+sh tools/setup-pi.sh
+sudo systemctl restart lyra
+```
+换声音：在 `.env` 里设置 `PIPER_VOICE`（见 `.env.example`）。
+
 ## 电脑版：生成字幕与翻译（在界面上操作）
 需要 NVIDIA 显卡的 Windows 电脑。所有东西都在程序目录里：Python 环境在 `tools/.venv`，模型在 `tools/models/`。
 

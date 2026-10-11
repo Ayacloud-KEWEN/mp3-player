@@ -8,7 +8,9 @@ __pycache__/
 *.part
 # 音频与字幕数据
 fry1/
+.phrases/
 *.mp3
+*.wav
 *.m4a
 *.srt
 *.vtt

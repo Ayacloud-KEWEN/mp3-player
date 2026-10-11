@@ -37,6 +37,13 @@ const MIME = {
   '.srt': 'text/plain; charset=utf-8', '.vtt': 'text/vtt; charset=utf-8', '.lrc': 'text/plain; charset=utf-8',
 };
 
+// 日常句子（Piper 合成）
+const phrases = require('./phrases')({
+  mediaDir: MEDIA_DIR, python: PYTHON, toolsDir: TOOLS_DIR,
+  voice: process.env.PIPER_VOICE || 'fr_FR-tom-medium',
+  speaker: process.env.PIPER_SPEAKER ? parseInt(process.env.PIPER_SPEAKER, 10) : null,
+});
+
 const collator = new Intl.Collator('zh', { numeric: true, sensitivity: 'base' });
 
 // 安全地把相对路径解析到根目录下，防止 ../ 越权
@@ -54,10 +61,11 @@ function listPlaylists() {
     const tracks = listTracks(d.name);
     if (tracks.length) result.push({ name: d.name, count: tracks.length });
   }
-  return result.sort((a, b) => collator.compare(a.name, b.name));
+  return result.sort((a, b) => collator.compare(a.name, b.name)).concat(phrases.playlists());
 }
 
 function listTracks(dir) {
+  if (dir.startsWith(phrases.PREFIX)) return phrases.tracks(dir) || [];
   const full = safeJoin(MEDIA_DIR, dir);
   if (!full || !fs.existsSync(full) || !fs.statSync(full).isDirectory()) return [];
   const files = fs.readdirSync(full);
@@ -131,7 +139,7 @@ function toolsAllowed(req) {
 
 function addJob(body) {
   const dir = String(body.dir || '');
-  if (!listPlaylists().some(p => p.name === dir)) throw new Error('Liste introuvable');
+  if (!listPlaylists().some(p => p.name === dir && !p.phrases)) throw new Error('Liste introuvable');
   const folder = safeJoin(MEDIA_DIR, dir);
   let args, label;
   if (body.kind === 'subs') {
@@ -186,9 +194,9 @@ const jobView = j => ({ id: j.id, label: j.label, dir: j.dir, status: j.status, 
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    let d = '';
-    req.on('data', c => { d += c; if (d.length > 1e5) req.destroy(); });
-    req.on('end', () => { try { resolve(JSON.parse(d || '{}')); } catch (e) { reject(e); } });
+    const chunks = []; let n = 0;
+    req.on('data', c => { chunks.push(c); n += c.length; if (n > 4e6) req.destroy(); });
+    req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (e) { reject(e); } });
   });
 }
 
@@ -208,6 +216,20 @@ async function handleJobs(req, res, pathname) {
   res.writeHead(404); res.end();
 }
 
+async function handlePhrases(req, res, pathname) {
+  try {
+    if (req.method === 'GET' && pathname === '/api/phrases') return sendJSON(res, phrases.get());
+    if (req.method === 'PUT' && pathname === '/api/phrases') return sendJSON(res, phrases.put(await readBody(req)));
+    if (req.method === 'POST' && pathname === '/api/phrases/preview') {
+      const { text } = await readBody(req);
+      return sendJSON(res, { file: await phrases.preview(text) });
+    }
+    res.writeHead(404); res.end();
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(e.message);
+  }
+}
+
 const server = http.createServer((req, res) => {
   let url;
   try { url = new URL(req.url, 'http://x'); } catch { res.writeHead(400); return res.end(); }
@@ -215,6 +237,7 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/api/config') return sendJSON(res, { tools: toolsAllowed(req) });
   if (pathname.startsWith('/api/jobs')) return handleJobs(req, res, pathname);
+  if (pathname.startsWith('/api/phrases')) return handlePhrases(req, res, pathname);
   if (pathname === '/api/playlists') return sendJSON(res, listPlaylists());
   if (pathname === '/api/tracks') return sendJSON(res, listTracks(url.searchParams.get('dir') || ''));
 
