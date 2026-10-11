@@ -39,6 +39,23 @@ WantedBy=multi-user.target
 - 收藏句子 ✦，之后一键回到并复读
 - 记住播放列表/曲目/进度/设置；锁屏与耳机线控（上/下一句）；定时停止；明暗主题
 
+## 双语阅读（电脑版）
+电脑上打开 `http://localhost:10020/read.html`（或设置 ☰ → Outils →「📖 Lecture bilingue」）：
+- 「+ Nouveau texte」：粘贴英语/法语文字、拖入 .txt，或拍照/截图（拖入、选择或 Ctrl+V 粘贴）自动识别文字（EasyOCR）。识别后可先修改再创建
+- 自动分句并译成中文（NLLB 1.3B，离线）
+- 三种显示：Côte à côte（左右对照）/ Alterné（逐句交替）/ Original seul（只看原文，点「文」或按 T 显示译文）
+- 朗读：句子旁 ▶ 朗读单句；「▶ Lire」连续朗读并高亮；「Répéter」每句后停顿跟读；可选 0.8/1.0/1.2 倍速
+- 点单词：Piper 朗读/慢速、词典链接、加入日常句子
+- 「⤓ Playlist audio」：整篇合成为 `lectures/<标题>/` 下的 MP3 + 原文字幕 + 中文字幕，拷到树莓派后手机即可边听边看
+- 键盘：↑↓ 上一句/下一句，空格 朗读/暂停，T 显示译文，Esc 关闭查词
+
+### DeepSeek 识别与翻译、收件箱 books/
+- 在 `.env` 填 `DEEPSEEK_API_KEY=`（见 `.env.example`），阅读页左下角「IA」点「Vérifier」：自动选择账号可用的文字 / 图片模型
+- 把文章照片或 .txt 放进 `books/`（一个子文件夹 = 一篇多页文章），阅读页左侧「BOÎTE」点「Traiter maintenant」：
+  DeepSeek 识别正文（长图自动切条）→ 判断语言、起标题 → 带上下文整篇逐句翻译；处理完的原文件移到 `books/_traité/`
+- 导入页可选「Moteur : DeepSeek / local」；已有文章可「↻ Retraduire」
+- DeepSeek 不可用或失败时自动退回本地 EasyOCR / NLLB；密钥只在本机 `.env`，不会发给浏览器或上传
+
 ## 查单词发音
 播放时点一下**当前这句**字幕 → 句子拆成单词（并暂停）；点单词弹出卡片：
 - ▶ Original：从录音中截出这个词的原声（需要 `<名>.words.json`，由新版生成字幕工具自动生成；旧字幕需重新生成一次）

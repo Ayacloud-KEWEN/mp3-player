@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lyra · Lecture</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3ede1; --bg2:#ebe3d3; --card:#faf6ee; --ink:#2b241c; --ink2:#6f6253; --ink3:#a59886;
+  --line:#d8cdb8; --accent:#9c4a2f; --accent-ink:#fff8ef; --gold:#a8843d; --hl:rgba(168,132,61,.16); --hl2:rgba(156,74,47,.10);
+  --serif:"Cormorant Garamond","Noto Serif SC","Songti SC",Georgia,serif;
+  --zh:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  --caps:"Cinzel","Cormorant Garamond",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16130f; --bg2:#1d1914; --card:#211c16; --ink:#ece3d2; --ink2:#b3a68f; --ink3:#77695a;
+    --line:#3a3128; --accent:#c9764f; --accent-ink:#1a120c; --gold:#c9a45c; --hl:rgba(201,164,92,.14); --hl2:rgba(201,118,79,.12);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16130f; --bg2:#1d1914; --card:#211c16; --ink:#ece3d2; --ink2:#b3a68f; --ink3:#77695a;
+  --line:#3a3128; --accent:#c9764f; --accent-ink:#1a120c; --gold:#c9a45c; --hl:rgba(201,164,92,.14); --hl2:rgba(201,118,79,.12);
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;height:100vh;overflow:hidden}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;padding:0}
+.meander{grid-column:1/-1;height:10px;opacity:.55;background:var(--gold);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10' viewBox='0 0 20 10'%3E%3Cpath d='M0 9.5h20M0 .5h20M1 9V3h6v4H4V5' fill='none' stroke='black' stroke-width='1'/%3E%3Cpath d='M11 1v6h6V3h-3v2' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10' viewBox='0 0 20 10'%3E%3Cpath d='M0 9.5h20M0 .5h20M1 9V3h6v4H4V5' fill='none' stroke='black' stroke-width='1'/%3E%3Cpath d='M11 1v6h6V3h-3v2' fill='none' stroke='black' stroke-width='1'/%3E%3C/svg%3E") repeat-x}
+
+/* ---------- 侧栏：文档库 ---------- */
+aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:var(--bg2)}
+.brand{padding:22px 22px 4px;font-family:var(--caps);letter-spacing:.32em;font-size:15px;color:var(--gold);font-weight:600}
+.brand small{display:block;letter-spacing:.2em;font-size:10px;color:var(--ink3);margin-top:4px}
+.brand a{color:inherit;text-decoration:none}
+.newbtn{margin:16px 18px 10px;height:40px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:16px}
+.lib{flex:1;overflow-y:auto;padding:4px 10px 20px}
+.doc{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:10px;position:relative}
+.doc:hover{background:var(--hl)}
+.doc.cur{background:var(--card);box-shadow:inset 3px 0 0 var(--accent)}
+.doc .t{font-size:16px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:18px}
+.doc .m{font-size:12px;color:var(--ink3);margin-top:3px;font-family:var(--caps);letter-spacing:.08em}
+.doc .m .busy{color:var(--accent)}
+.doc .x{position:absolute;right:8px;top:9px;color:var(--ink3);font-size:14px;opacity:0;width:20px;height:20px;border-radius:50%}
+.doc:hover .x{opacity:1}
+.doc .x:hover{background:var(--line);color:var(--ink)}
+.inbox{margin:0 18px 10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.inbox h4{margin:0 0 6px;font-family:var(--caps);font-size:11px;letter-spacing:.16em;color:var(--gold);font-weight:600;display:flex;gap:8px}
+.inbox h4 span{margin-left:auto;color:var(--ink3)}
+.inbox ul{list-style:none;margin:0 0 8px;padding:0;font-size:14px;color:var(--ink2);max-height:120px;overflow-y:auto}
+.inbox li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 0}
+.inbox li.busy{color:var(--accent)}
+.inbox .none{font-size:14px;color:var(--ink3);margin-bottom:8px}
+.inbox button{width:100%;height:34px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:15px}
+.inbox button:disabled{opacity:.4;cursor:default}
+.ai{padding:10px 20px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--ink3);line-height:1.5}
+.ai b{font-family:var(--caps);letter-spacing:.12em;font-size:11px;color:var(--gold);font-weight:600}
+.ai .ok{color:var(--gold)} .ai .no{color:var(--accent)}
+.ai button{color:var(--ink2);text-decoration:underline;text-underline-offset:3px;font-size:13px}
+.doc .m .ia{color:var(--gold)}
+.empty-lib{padding:12px 14px;color:var(--ink3);font-size:15px}
+
+/* ---------- 顶栏 ---------- */
+main{display:flex;flex-direction:column;min-height:0;min-width:0}
+.bar{display:flex;align-items:center;gap:14px;padding:14px 28px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.bar h1{flex:1;min-width:200px;margin:0;font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:flex;border:1px solid var(--line);border-radius:999px;padding:2px}
+.seg button{padding:5px 13px;border-radius:999px;font-size:14px;color:var(--ink2)}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.btn{padding:6px 14px;border:1px solid var(--line);border-radius:999px;font-size:14px;color:var(--ink2);white-space:nowrap}
+.btn:hover{border-color:var(--ink3);color:var(--ink)}
+.btn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+select.btn{background:transparent;appearance:none;padding-right:14px;cursor:pointer}
+
+/* ---------- 正文 ---------- */
+.scroll{flex:1;overflow-y:auto;scroll-behavior:smooth}
+article{margin:0 auto;padding:36px 40px 40vh;max-width:760px}
+article.side{max-width:1180px}
+.status{margin:20vh auto;text-align:center;color:var(--ink3)}
+.status b{display:block;font-family:var(--caps);letter-spacing:.2em;font-size:12px;color:var(--gold);margin-bottom:10px}
+.prog{width:260px;height:2px;background:var(--line);margin:14px auto 0;border-radius:2px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .4s}
+
+.o{font-size:21px;line-height:1.75;color:var(--ink)}
+.z{font-family:var(--zh);font-size:16px;line-height:1.9;color:var(--ink2)}
+.s,.z span{border-radius:4px;transition:background .15s}
+.s{position:relative;cursor:text}
+.s.hl,.zs.hl{background:var(--hl)}
+.s.cur{box-shadow:0 2px 0 var(--accent)}
+.s.reading,.zs.reading{background:var(--hl2)}
+.w{cursor:pointer;border-radius:3px}
+.w:hover{color:var(--accent)}
+.w.sel{background:var(--accent);color:var(--accent-ink)}
+.tools{display:none;position:absolute;left:-34px;top:.15em;flex-direction:column;gap:2px}
+.s:hover .tools{display:flex}
+.tools button{width:24px;height:24px;border-radius:50%;font-size:11px;color:var(--ink2);background:var(--card);border:1px solid var(--line);line-height:1}
+.tools button:hover{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+
+/* 左右对照 */
+.pa{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-bottom:26px;padding-left:34px}
+.pa .z{border-left:1px solid var(--line);padding-left:28px}
+/* 逐句交替 */
+.pb{margin:0 0 30px;padding-left:34px}
+.pb .u{margin-bottom:10px}
+.pb .u .z{display:block;margin-top:2px}
+/* 只看原文 */
+.pc{margin:0 0 26px;padding-left:34px}
+.ti{display:block;font-family:var(--zh);font-size:16px;line-height:1.8;color:var(--accent);margin:4px 0 8px;padding-left:12px;border-left:2px solid var(--line)}
+
+/* ---------- 导入 ---------- */
+.imp{max-width:820px;margin:0 auto;padding:36px 40px 60px;display:grid;gap:16px}
+.imp h2{margin:0;font-family:var(--caps);letter-spacing:.24em;font-size:14px;color:var(--gold);font-weight:600}
+.imp .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.imp input[type=text]{flex:1;min-width:240px;font-size:18px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.imp textarea{width:100%;min-height:46vh;font-size:18px;line-height:1.6;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card);resize:vertical}
+.imp input:focus,.imp textarea:focus{outline:1px solid var(--gold);border-color:var(--gold)}
+.imp .drop{border:1px dashed var(--ink3);border-radius:12px;padding:14px;text-align:center;color:var(--ink3);font-size:15px}
+.imp .drop.over{border-color:var(--accent);color:var(--accent);background:var(--hl2)}
+.imp .hint{font-size:14px;color:var(--ink3)}
+
+/* ---------- 查词浮窗 ---------- */
+.pop{position:fixed;z-index:20;width:360px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px -18px rgba(0,0,0,.45);padding:16px 18px}
+.pop .hd{display:flex;align-items:baseline;gap:10px}
+.pop .hd b{font-size:28px;font-weight:600}
+.pop .hd small{font-family:var(--caps);font-size:10px;letter-spacing:.14em;color:var(--ink3)}
+.pop .hd .close{margin-left:auto;color:var(--ink3);font-size:18px}
+.pop .pl{display:flex;gap:8px;margin:12px 0}
+.pop .pl button{flex:1;height:40px;border:1px solid var(--line);border-radius:10px;font-size:15px}
+.pop .pl button:hover{background:var(--hl)}
+.pop .lk{display:flex;flex-wrap:wrap;gap:6px}
+.pop .lk a{padding:5px 10px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--ink2);text-decoration:none}
+.pop .lk a:hover{color:var(--ink);border-color:var(--ink3)}
+.pop .ad{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pop .ad button{padding:5px 10px;border-radius:999px;font-size:13px;background:var(--hl);color:var(--ink)}
+.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,10px);background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:999px;font-size:15px;opacity:0;transition:.25s;pointer-events:none;z-index:30}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.kbd{font-size:13px;color:var(--ink3);padding:10px 28px 16px;border-top:1px solid var(--line)}
+.denied{grid-column:1/-1;margin:20vh auto;color:var(--ink3);text-align:center;max-width:480px;line-height:1.6}
+.pa{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.scroll{overflow-x:hidden}
+.o,.z{overflow-wrap:break-word}
+/* 窗口较窄时收紧间距 */
+@media (max-width: 1100px){
+  body{grid-template-columns:220px 1fr}
+  article{padding:28px 24px 40vh}
+  .pa{gap:28px;padding-left:30px}
+  .pa .z{padding-left:18px}
+  .bar{padding:12px 18px;gap:10px}
+}
+@media (max-width: 760px){
+  body{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
+  aside{max-height:30vh;border-right:0;border-bottom:1px solid var(--line)}
+  .pa{grid-template-columns:minmax(0,1fr);gap:6px}
+  .pa .z{border-left:0;padding-left:0}
+}
+</style>
+</head>
+<body>
+<div class="meander"></div>
+
+<aside>
+  <div class="brand"><a href="./">LYRA</a><small>LECTURE BILINGUE</small></div>
+  <button class="newbtn" id="newBtn">+ Nouveau texte</button>
+  <div class="inbox" id="inbox"><h4>BOÎTE<span id="inboxDir"></span></h4><div id="inboxList"></div>
+    <button id="inboxGo" disabled>Traiter maintenant</button></div>
+  <div class="lib" id="lib"></div>
+  <div class="ai" id="aiBox"></div>
+</aside>
+
+<main>
+  <div class="bar" id="bar" hidden>
+    <h1 id="title" title="Double-clic pour renommer"></h1>
+    <div class="seg" id="modes">
+      <button data-m="side">Côte à côte</button><button data-m="alt">Alterné</button><button data-m="orig">Original seul</button>
+    </div>
+    <select class="btn" id="speed" title="Vitesse de lecture">
+      <option value="0.8">× 0.8</option><option value="1" selected>× 1.0</option><option value="1.2">× 1.2</option>
+    </select>
+    <button class="btn primary" id="readBtn">▶ Lire</button>
+    <button class="btn" id="shadowBtn" title="Pause après chaque phrase pour répéter">Répéter</button>
+    <button class="btn" id="exportBtn" title="Créer une playlist audio (MP3 + sous-titres)">⤓ Playlist audio</button>
+    <button class="btn" id="retrBtn" title="Traduire à nouveau tout le texte">↻ Retraduire</button>
+  </div>
+  <div class="scroll" id="scroll"><div id="view"></div></div>
+  <div class="kbd" id="kbd" hidden>↑ ↓ phrase précédente / suivante · Espace lire / pause · T afficher la traduction · clic sur un mot : prononciation et dictionnaires</div>
+</main>
+
+<div class="pop" id="pop" hidden>
+  <div class="hd"><b id="pWord"></b><small id="pLang"></small><button class="close" id="pClose">×</button></div>
+  <div class="pl"><button id="pSay">▶ Voix</button><button id="pSlow">▶ Lent</button></div>
+  <div class="lk" id="pLinks"></div>
+  <div class="ad" id="pAdd"></div>
+</div>
+<div class="toast" id="toast"></div>
+<input type="file" id="fileTxt" accept=".txt,.md,text/plain" hidden>
+<input type="file" id="fileImg" accept="image/*" multiple hidden>
+
+<script>
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('lyra.' + k); return v === null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('lyra.' + k, JSON.stringify(v)); }catch{} }
+};
+const theme = store.get('settings', {}).theme;
+if (theme && theme !== 'auto') document.documentElement.dataset.theme = theme;
+let toastT;
+function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+const api = async (url, opt = {}) => {
+  const r = await fetch(url, { ...opt, headers: opt.body ? { 'Content-Type':'application/json' } : {} });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+};
+const enc = p => p.split('/').map(encodeURIComponent).join('/');
+
+// ---------- 状态 ----------
+let docs = [], doc = null, flat = [], cur = -1, mode = store.get('read.mode', 'orig');
+let reading = false, shadow = false, pollT = null;
+const revealed = new Set();
+const audio = new Audio();
+
+// ---------- 文档库 ----------
+async function loadLib(){
+  try { docs = await api('api/library'); } catch (e) { return denied(); }
+  const box = $('lib'); box.innerHTML = '';
+  if (!docs.length) box.innerHTML = '<div class="empty-lib">Aucun texte. Commencez par « Nouveau texte ».</div>';
+  docs.forEach(d => {
+    const b = document.createElement('button'); b.className = 'doc' + (doc?.id === d.id ? ' cur' : '');
+    b.innerHTML = '<div class="t"></div><div class="m"></div><span class="x" title="Supprimer">×</span>';
+    b.querySelector('.t').textContent = d.title;
+    const busy = d.job && (d.job.status === 'running' || d.job.status === 'queued');
+    b.querySelector('.m').innerHTML = `${(d.lang || '?').toUpperCase()} · ${new Date(d.created).toLocaleDateString('fr-FR')}` +
+      (d.engine && d.engine !== 'local' ? ' · <span class="ia">IA</span>' : '') +
+      (busy ? ` · <span class="busy">${d.job.kind === 'export' ? 'AUDIO' : 'TRADUCTION'}…</span>` : d.ready ? '' : ' · <span class="busy">ÉCHEC</span>');
+    b.onclick = e => { if (e.target.classList.contains('x')) return delDoc(d); openDoc(d.id); };
+    box.appendChild(b);
+  });
+  if (docs.some(d => d.job && (d.job.status === 'running' || d.job.status === 'queued'))) { clearTimeout(pollT); pollT = setTimeout(refresh, 1500); }
+  loadInbox();
+}
+
+// ---------- 收件箱与 AI 状态 ----------
+let ai = { configured: false, models: null };
+async function loadInbox(){
+  let b; try { b = await api('api/books'); } catch { return; }
+  $('inboxDir').textContent = b.dir + '/';
+  const list = $('inboxList'); list.innerHTML = '';
+  if (!b.items.length) list.innerHTML = '<div class="none">Vide. Déposez des photos ou des .txt dans ce dossier (un sous-dossier = un article de plusieurs pages).</div>';
+  else {
+    const ul = document.createElement('ul');
+    b.items.forEach(it => { const li = document.createElement('li'); li.textContent = (it.dir ? '▸ ' : '') + it.name; li.classList.toggle('busy', it.busy); ul.append(li); });
+    list.append(ul);
+  }
+  const free = b.items.filter(x => !x.busy).length;
+  $('inboxGo').disabled = !free;
+  $('inboxGo').textContent = free ? `Traiter maintenant (${free})` + (b.ai ? ' · IA' : '') : 'Traiter maintenant';
+}
+$('inboxGo').onclick = async () => {
+  $('inboxGo').disabled = true;
+  try { const r = await api('api/books/process', { method:'POST', body: JSON.stringify({ engine: ai.configured ? 'ai' : 'local' }) }); toast(`${r.queued} article(s) en cours de traitement`); }
+  catch (e) { toast(e.message); }
+  loadLib();
+};
+async function loadAI(){
+  try { ai = await api('api/ai'); } catch {}
+  const box = $('aiBox');
+  if (!ai.configured) box.innerHTML = '<b>IA</b> · <span class="no">non configurée</span><br>Renseignez DEEPSEEK_API_KEY dans .env — reconnaissance et traduction locales en attendant. <button id="aiCheck">Vérifier</button>';
+  else if (!ai.models) box.innerHTML = '<b>IA</b> · DeepSeek · clé trouvée <button id="aiCheck">Tester la connexion</button>';
+  else box.innerHTML = `<b>IA</b> · <span class="ok">DeepSeek ✓</span><br>Traduction : ${ai.models.text}<br>Images : ${ai.models.vision || '<span class="no">non disponible (EasyOCR)</span>'} <button id="aiCheck">Revérifier</button>`;
+  $('aiCheck').onclick = async () => {
+    $('aiBox').append(' …');
+    try { const r = await api('api/ai/check', { method:'POST', body: '{}' }); toast(r.models.vision ? 'DeepSeek OK : texte et images' : 'DeepSeek OK : texte seulement'); }
+    catch (e) { toast(e.message); }
+    loadAI();
+  };
+}
+$('retrBtn').onclick = async () => {
+  const engine = ai.configured ? 'ai' : 'local';
+  if (!confirm(`Retraduire tout le texte avec ${engine === 'ai' ? 'DeepSeek' : 'le modèle local'} ?`)) return;
+  await api(`api/library/${doc.id}/rebuild`, { method:'POST', body: JSON.stringify({ engine }) });
+  stopReading(); openDoc(doc.id);
+}
+function denied(){
+  document.body.innerHTML = '<div class="denied"><b style="font-family:var(--caps);letter-spacing:.2em;color:var(--gold)">LECTURE BILINGUE</b><br><br>Disponible uniquement sur l’ordinateur (outils activés : <code>ENABLE_TOOLS=1</code>, accès local).</div>';
+}
+async function refresh(){
+  await loadLib();
+  if (doc && !doc.paragraphs) openDoc(doc.id, true);
+}
+async function delDoc(d){
+  if (!confirm(`Supprimer « ${d.title} » ?`)) return;
+  await api('api/library/' + d.id, { method:'DELETE' });
+  if (doc?.id === d.id) { doc = null; showImport(); }
+  loadLib();
+}
+
+async function openDoc(id, quiet){
+  stopReading();
+  doc = await api('api/library/' + id);
+  store.set('read.last', id);
+  $('bar').hidden = false; $('kbd').hidden = !doc.paragraphs;
+  $('title').textContent = doc.title;
+  document.title = doc.title + ' · Lyra';
+  [...$('modes').children].forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+  if (!quiet) loadLib();
+  if (!doc.paragraphs) {
+    const j = doc.job, [a, b] = (j?.progress || '0/1').split('/').map(Number);
+    const failed = !j || j.status === 'failed' || j.status === 'cancelled';
+    $('view').innerHTML = `<div class="status"><b>${failed ? 'ÉCHEC DE LA TRADUCTION' : 'TRADUCTION EN COURS'}</b><span></span>
+      ${failed ? '<br><br><button class="btn" id="retry">Réessayer</button>' : `<div class="prog"><i style="width:${b ? a / b * 100 : 3}%"></i></div>`}</div>`;
+    $('view').querySelector('span').textContent = failed ? (j?.last || '') : (j?.last || 'En attente…');
+    if (failed) $('retry').onclick = async () => { await api(`api/library/${id}/rebuild`, { method:'POST' }); refresh(); };
+    clearTimeout(pollT); if (!failed) pollT = setTimeout(refresh, 1500);
+    return;
+  }
+  flat = doc.paragraphs.flat();
+  revealed.clear();
+  render();
+  cur = Math.min(store.get('read.pos.' + id, 0), flat.length - 1);
+  setCur(cur, true);
+}
+
+// ---------- 渲染（三种模式）----------
+const WORD = /([\p{L}\p{N}][\p{L}\p{N}'’\-]*)/u;
+function srcSpan(text, i){
+  const s = document.createElement('span'); s.className = 's'; s.dataset.i = i;
+  // 拆出单词，可点击查词
+  text.split(WORD).forEach((part, k) => {
+    if (!part) return;
+    if (k % 2) { const w = document.createElement('span'); w.className = 'w'; w.textContent = part; s.append(w); }
+    else s.append(part);
+  });
+  const tools = document.createElement('span'); tools.className = 'tools';
+  tools.innerHTML = '<button data-a="play" title="Lire cette phrase">▶</button>' + (mode === 'orig' ? '<button data-a="tr" title="Traduction (T)">文</button>' : '');
+  s.prepend(tools);
+  return s;
+}
+function zhSpan(text, i){ const z = document.createElement('span'); z.className = 'zs'; z.dataset.i = i; z.textContent = text; return z; }
+function render(){
+  const art = document.createElement('article'); art.className = mode === 'side' ? 'side' : '';
+  let i = 0;
+  for (const para of doc.paragraphs) {
+    if (mode === 'side') {
+      const pa = document.createElement('div'); pa.className = 'pa';
+      const o = document.createElement('div'); o.className = 'o'; const z = document.createElement('div'); z.className = 'z';
+      para.forEach(([s, t]) => { o.append(srcSpan(s, i), ' '); z.append(zhSpan(t, i), ' '); i++; });
+      pa.append(o, z); art.append(pa);
+    } else if (mode === 'alt') {
+      const pb = document.createElement('div'); pb.className = 'pb';
+      para.forEach(([s, t]) => {
+        const u = document.createElement('div'); u.className = 'u';
+        const o = document.createElement('div'); o.className = 'o'; o.append(srcSpan(s, i));
+        const z = document.createElement('div'); z.className = 'z'; z.append(zhSpan(t, i));
+        u.append(o, z); pb.append(u); i++;
+      });
+      art.append(pb);
+    } else {
+      const pc = document.createElement('div'); pc.className = 'pc o';
+      para.forEach(([s]) => { pc.append(srcSpan(s, i), ' '); if (revealed.has(i)) pc.append(tiSpan(i)); i++; });
+      art.append(pc);
+    }
+  }
+  $('view').innerHTML = ''; $('view').append(art);
+  if (cur >= 0) setCur(cur, true);
+}
+const tiSpan = i => { const t = document.createElement('span'); t.className = 'ti'; t.dataset.ti = i; t.textContent = flat[i][1]; return t; };
+function toggleTr(i){
+  if (mode !== 'orig') return;
+  const ex = $('view').querySelector(`[data-ti="${i}"]`);
+  if (ex) { ex.remove(); revealed.delete(i); return; }
+  revealed.add(i); $('view').querySelector(`.s[data-i="${i}"]`).after(tiSpan(i));
+}
+const els = i => $('view').querySelectorAll(`[data-i="${i}"]`);
+function setCur(i, jump){
+  $('view').querySelectorAll('.s.cur').forEach(e => e.classList.remove('cur'));
+  cur = i; const el = $('view').querySelector(`.s[data-i="${i}"]`);
+  if (!el) return;
+  el.classList.add('cur');
+  store.set('read.pos.' + doc.id, i);
+  const sc = $('scroll'), r = el.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+  if (jump || r.top < sr.top + 60 || r.bottom > sr.bottom - 80)
+    sc.scrollTo({ top: sc.scrollTop + r.top - sr.top - sc.clientHeight * 0.35, behavior: jump ? 'auto' : 'smooth' });
+}
+
+// 悬停：原文与译文同时高亮
+$('view').addEventListener('mouseover', e => {
+  const t = e.target.closest('[data-i]');
+  $('view').querySelectorAll('.hl').forEach(x => x.classList.remove('hl'));
+  if (t) els(t.dataset.i).forEach(x => x.classList.add('hl'));
+});
+$('view').addEventListener('click', e => {
+  const s = e.target.closest('.s'); if (!s) return;
+  const i = +s.dataset.i, a = e.target.closest('button')?.dataset.a;
+  if (a === 'play') { setCur(i); return playFrom(i, false); }
+  if (a === 'tr') return toggleTr(i);
+  setCur(i);
+  const w = e.target.closest('.w');
+  if (w) openPop(w, i);
+});
+
+// ---------- 朗读 ----------
+const sayCache = new Map();
+function say(text){
+  if (!sayCache.has(text)) {
+    const p = api('api/say', { method:'POST', body: JSON.stringify({ text, lang: doc.lang }) }).then(r => 'media/' + enc(r.file));
+    p.catch(() => sayCache.delete(text));
+    sayCache.set(text, p);
+  }
+  return sayCache.get(text);
+}
+let waitT = null, playToken = 0;
+async function playFrom(i, continuous){
+  clearTimeout(waitT);
+  reading = continuous; updReadBtn();
+  const token = ++playToken;
+  $('view').querySelectorAll('.reading').forEach(x => x.classList.remove('reading'));
+  els(i).forEach(x => x.classList.add('reading'));
+  setCur(i);
+  let src;
+  try { src = await say(flat[i][0]); } catch (e) { toast(e.message); return stopReading(); }
+  if (token !== playToken) return;
+  if (continuous && flat[i + 1]) say(flat[i + 1][0]);   // 预先合成下一句
+  audio.src = src; audio.playbackRate = +$('speed').value; audio.preservesPitch = true;
+  audio.onended = () => {
+    if (token !== playToken) return;
+    els(i).forEach(x => x.classList.remove('reading'));
+    if (!reading || i + 1 >= flat.length) { reading = false; return updReadBtn(); }
+    // 跟读：停顿约等于句长；否则短暂停顿，段落末多停一点
+    const paraEnd = doc.paragraphs.reduce((acc, p) => (acc.n += p.length, acc.n === i + 1 ? (acc.end = true, acc) : acc), { n: 0, end: false }).end;
+    const gap = shadow ? Math.min(10, audio.duration / audio.playbackRate * 1.1 + 0.6) * 1000 : paraEnd ? 700 : 250;
+    waitT = setTimeout(() => playFrom(i + 1, true), gap);
+  };
+  audio.play().catch(() => {});
+}
+function stopReading(){ reading = false; playToken++; clearTimeout(waitT); audio.pause(); $('view')?.querySelectorAll('.reading').forEach(x => x.classList.remove('reading')); updReadBtn(); }
+function updReadBtn(){ $('readBtn').textContent = reading ? '❚❚ Pause' : '▶ Lire'; }
+$('readBtn').onclick = () => reading ? stopReading() : playFrom(Math.max(0, cur), true);
+$('shadowBtn').onclick = () => { shadow = !shadow; $('shadowBtn').classList.toggle('on', shadow); toast(shadow ? 'Répéter : pause après chaque phrase' : 'Lecture continue'); };
+$('speed').onchange = () => { audio.playbackRate = +$('speed').value; store.set('read.speed', $('speed').value); };
+$('speed').value = store.get('read.speed', '1');
+
+// ---------- 模式切换 / 改名 / 导出 ----------
+$('modes').onclick = e => {
+  const m = e.target.dataset.m; if (!m) return;
+  mode = m; store.set('read.mode', m);
+  [...$('modes').children].forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  if (doc?.paragraphs) render();
+};
+$('title').ondblclick = async () => {
+  const t = prompt('Titre :', doc.title); if (!t?.trim()) return;
+  await api(`api/library/${doc.id}/meta`, { method:'POST', body: JSON.stringify({ title: t.trim() }) });
+  doc.title = t.trim(); $('title').textContent = doc.title; loadLib();
+};
+$('exportBtn').onclick = async () => {
+  try {
+    const r = await api(`api/library/${doc.id}/export`, { method:'POST', body: '{}' });
+    toast(`Création de la playlist « ${r.playlist} »…`);
+    watchExport(doc.id, r.playlist);
+  } catch (e) { toast(e.message); }
+};
+async function watchExport(id, playlist){
+  const d = await api('api/library/' + id).catch(() => null);
+  const j = d?.job;
+  if (j && (j.status === 'running' || j.status === 'queued')) { $('exportBtn').textContent = `⤓ Audio ${j.progress || '…'}`; return setTimeout(() => watchExport(id, playlist), 1500); }
+  $('exportBtn').textContent = '⤓ Playlist audio';
+  if (j?.status === 'done') toast(`Playlist prête : ${playlist}`); else toast('Échec : ' + (j?.last || ''));
+  loadLib();
+}
+
+// ---------- 查词浮窗 ----------
+const ELISION = /^(l|d|j|m|n|s|t|c|qu|jusqu|lorsqu|puisqu|presqu)['’]/i;
+const clean = t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+function openPop(w, i){
+  $('view').querySelectorAll('.w.sel').forEach(x => x.classList.remove('sel'));
+  w.classList.add('sel');
+  const word = clean(w.textContent), look = word.replace(ELISION, '').toLowerCase(), lang = doc.lang;
+  $('pWord').textContent = word; $('pLang').textContent = lang === 'fr' ? 'FRANÇAIS' : 'ANGLAIS';
+  $('pSay').onclick = () => playWord(word, 1); $('pSlow').onclick = () => playWord(word, 0.6);
+  const q = encodeURIComponent(look);
+  const L = lang === 'en'
+    ? [['Google Traduction', `https://translate.google.com/?sl=en&tl=zh-CN&text=${q}&op=translate`], ['Wiktionary', `https://en.wiktionary.org/wiki/${q}`], ['Forvo', `https://forvo.com/word/${q}/#en`], ['WordReference', `https://www.wordreference.com/enfr/${q}`]]
+    : [['Google Traduction', `https://translate.google.com/?sl=fr&tl=zh-CN&text=${q}&op=translate`], ['Wiktionnaire', `https://fr.wiktionary.org/wiki/${q}`], ['Forvo', `https://forvo.com/word/${q}/#fr`], ['WordReference', `https://www.wordreference.com/fren/${q}`], ['Larousse', `https://www.larousse.fr/dictionnaires/francais/${q}`]];
+  $('pLinks').innerHTML = '';
+  L.forEach(([n, u]) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener'; a.textContent = n; $('pLinks').append(a); });
+  $('pAdd').innerHTML = '';
+  if (lang === 'fr') {
+    const b1 = document.createElement('button'); b1.textContent = '✦ Mot → Vocabulaire'; b1.onclick = () => addPhrase(word, 'Vocabulaire');
+    const b2 = document.createElement('button'); b2.textContent = '✦ Phrase → Quotidien'; b2.onclick = () => addPhrase(flat[i][0], null);
+    $('pAdd').append(b1, b2);
+  }
+  // 定位在单词下方，避免超出窗口
+  const pop = $('pop'); pop.hidden = false;
+  const r = w.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  pop.style.left = Math.min(innerWidth - pw - 12, Math.max(12, r.left + r.width / 2 - pw / 2)) + 'px';
+  pop.style.top = (r.bottom + ph + 12 < innerHeight ? r.bottom + 8 : r.top - ph - 8) + 'px';
+  playWord(word, 1);
+}
+async function playWord(text, rate){
+  stopReading();
+  try { audio.src = await say(text); audio.playbackRate = rate; audio.preservesPitch = true; audio.onended = null; audio.play().catch(() => {}); }
+  catch (e) { toast(e.message); }
+}
+function closePop(){ $('pop').hidden = true; $('view').querySelectorAll('.w.sel').forEach(x => x.classList.remove('sel')); }
+$('pClose').onclick = closePop;
+document.addEventListener('mousedown', e => { if (!$('pop').hidden && !e.target.closest('#pop') && !e.target.closest('.w')) closePop(); });
+$('scroll').addEventListener('scroll', () => { if (!$('pop').hidden) closePop(); });
+const rid = () => [...crypto.getRandomValues(new Uint8Array(5))].map(b => b.toString(16).padStart(2, '0')).join('');
+async function addPhrase(text, groupName){
+  try {
+    const d = await api('api/phrases');
+    let g = groupName ? d.groups.find(x => x.name === groupName) : (d.groups.find(x => x.id === store.get('phGroup', null)) || d.groups[0]);
+    if (!g) { g = { id: rid(), name: groupName, items: [] }; d.groups.push(g); }
+    if (g.items.some(it => it.text.toLowerCase() === text.toLowerCase())) return toast(`Déjà dans « ${g.name} »`);
+    g.items.push({ id: rid(), text, note: '', created: Date.now() });
+    await api('api/phrases', { method:'PUT', body: JSON.stringify({ groups: d.groups }) });
+    toast(`Ajouté à « ${g.name} »`);
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- 键盘 ----------
+document.addEventListener('keydown', e => {
+  if (!doc?.paragraphs || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); const n = Math.max(0, Math.min(flat.length - 1, cur + (e.key === 'ArrowDown' ? 1 : -1)));
+    reading ? playFrom(n, true) : setCur(n);
+  } else if (e.key === ' ') { e.preventDefault(); reading ? stopReading() : playFrom(Math.max(0, cur), true); }
+  else if (e.key.toLowerCase() === 't') toggleTr(cur);
+  else if (e.key === 'Escape') closePop();
+});
+
+// ---------- 导入：粘贴文字 / txt 文件 / 图片识别 ----------
+function guessLang(t){
+  const s = t.toLowerCase(); let fr = 0, en = 0;
+  for (const w of s.split(/[^a-zàâäçéèêëîïôöûùüÿœæ'’]+/).slice(0, 400)) {
+    if (/^(le|la|les|des|une|est|et|je|vous|nous|que|qui|pas|pour|dans|sur|avec|il|elle|ce|du|au|on|mais|très)$/.test(w) || /[àâçéèêëîïôûùœ]/.test(w)) fr++;
+    if (/^(the|and|is|was|you|he|she|it|of|to|in|that|for|with|his|her|they|said|had|have|not|but|are)$/.test(w)) en++;
+  }
+  return fr > en ? 'fr' : 'en';
+}
+function showImport(){
+  stopReading(); doc = null; $('bar').hidden = true; $('kbd').hidden = true; closePop();
+  document.title = 'Lyra · Lecture';
+  $('view').innerHTML = `<div class="imp">
+    <h2>NOUVEAU TEXTE</h2>
+    <div class="row"><input type="text" id="iTitle" placeholder="Titre (facultatif)">
+      <select class="btn" id="iLang"><option value="fr">Français</option><option value="en">Anglais</option></select>
+      <select class="btn" id="iEngine" title="Reconnaissance d’image et traduction"><option value="ai">Moteur : DeepSeek</option><option value="local">Moteur : local</option></select></div>
+    <div class="drop" id="iDrop">Glissez ici un fichier <b>.txt</b> ou une <b>photo</b> de texte · collez une image avec Ctrl+V ·
+      <button class="btn" id="iTxt">Fichier .txt</button> <button class="btn" id="iImg">Photo / image</button></div>
+    <textarea id="iText" placeholder="Collez ou tapez le texte en anglais ou en français…"></textarea>
+    <div class="row"><button class="btn primary" id="iGo">Traduire et créer</button><span class="hint" id="iHint">Après une reconnaissance d’image, relisez le texte avant de créer.</span></div>
+  </div>`;
+  loadLib();
+  $('iEngine').value = ai.configured ? store.get('read.engine', 'ai') : 'local';
+  $('iEngine').querySelector('[value=ai]').disabled = !ai.configured;
+  $('iEngine').onchange = () => store.set('read.engine', $('iEngine').value);
+  const t = $('iText');
+  t.addEventListener('input', () => { if (!t.dataset.langSet) $('iLang').value = guessLang(t.value); });
+  $('iLang').onchange = () => t.dataset.langSet = '1';
+  $('iTxt').onclick = () => $('fileTxt').click();
+  $('iImg').onclick = () => $('fileImg').click();
+  $('iGo').onclick = create;
+  const drop = $('iDrop');
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); handleFiles([...e.dataTransfer.files]); };
+  t.focus();
+}
+$('fileTxt').onchange = e => { handleFiles([...e.target.files]); e.target.value = ''; };
+$('fileImg').onchange = e => { handleFiles([...e.target.files]); e.target.value = ''; };
+document.addEventListener('paste', e => {
+  if (!$('iText')) return;
+  const imgs = [...e.clipboardData.files].filter(f => f.type.startsWith('image/'));
+  if (imgs.length) { e.preventDefault(); handleFiles(imgs); }
+});
+async function handleFiles(files){
+  const txt = files.filter(f => /\.(txt|md)$/i.test(f.name) || f.type === 'text/plain');
+  const img = files.filter(f => f.type.startsWith('image/'));
+  for (const f of txt) {
+    appendText(await f.text());
+    if (!$('iTitle').value) $('iTitle').value = f.name.replace(/\.[^.]+$/, '');
+  }
+  if (img.length) await ocr(img);
+}
+function appendText(s){
+  const t = $('iText'); t.value = (t.value.trim() ? t.value.trim() + '\n\n' : '') + s.trim();
+  t.dispatchEvent(new Event('input'));
+}
+// 图片先在浏览器里缩小到 2000px 以内，上传更快、识别也更稳
+const shrink = f => new Promise((resolve, reject) => {
+  const img = new Image(); img.onerror = reject;
+  img.onload = () => {
+    const k = Math.min(1, 2000 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = img.width * k; c.height = img.height * k;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    resolve(c.toDataURL('image/jpeg', 0.9)); URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(f);
+});
+async function ocr(files){
+  $('iHint').textContent = `Reconnaissance du texte (${files.length} image${files.length > 1 ? 's' : ''})… quelques secondes`;
+  $('iGo').disabled = true;
+  try {
+    const images = await Promise.all(files.map(shrink));
+    const r = await api('api/ocr', { method:'POST', body: JSON.stringify({ images, engine: $('iEngine').value }) });
+    if (!r.text.trim()) throw new Error('Aucun texte reconnu');
+    appendText(r.text);
+    if (r.title && !$('iTitle').value) $('iTitle').value = r.title;
+    if (r.lang) { $('iLang').value = r.lang; $('iText').dataset.langSet = '1'; }
+    $('iHint').textContent = 'Texte reconnu : relisez et corrigez (ponctuation surtout) avant de créer.';
+  } catch (e) { $('iHint').textContent = 'Échec de la reconnaissance : ' + e.message; }
+  $('iGo').disabled = false;
+}
+async function create(){
+  const text = $('iText').value.trim();
+  if (!text) return toast('Le texte est vide');
+  $('iGo').disabled = true;
+  try {
+    const r = await api('api/library', { method:'POST', body: JSON.stringify({ title: $('iTitle').value, lang: $('iLang').value, text, engine: $('iEngine').value }) });
+    await loadLib(); openDoc(r.id);
+  } catch (e) { toast(e.message); $('iGo').disabled = false; }
+}
+$('newBtn').onclick = showImport;
+
+// ---------- 启动 ----------
+(async () => {
+  const cfg = await api('api/config').catch(() => ({}));
+  if (!cfg.tools) return denied();
+  await loadAI();
+  await loadLib();
+  const last = store.get('read.last', null);
+  if (last && docs.some(d => d.id === last)) openDoc(last); else showImport();
+})();
+</script>
+</body>
+</html>

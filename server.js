@@ -5,15 +5,28 @@ const fs = require('fs');
 const path = require('path');
 
 // ---------- 读取 .env ----------
-function loadEnv(file) {
-  if (!fs.existsSync(file)) return;
+function parseEnv(file) {
+  const out = {};
+  if (!fs.existsSync(file)) return out;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (!m || line.trim().startsWith('#')) continue;
-    let v = m[2].replace(/^(['"])(.*)\1$/, '$2');
-    if (!(m[1] in process.env)) process.env[m[1]] = v;
+    out[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
   }
+  return out;
 }
+function loadEnv(file) {
+  for (const [k, v] of Object.entries(parseEnv(file))) if (!(k in process.env)) process.env[k] = v;
+}
+// DeepSeek 设置每次从 .env 重新读取：填好密钥后无需重启服务
+function aiEnv() {
+  const e = parseEnv(path.join(__dirname, '.env'));
+  const out = {};
+  for (const k of ['DEEPSEEK_API_KEY', 'DEEPSEEK_MODEL', 'DEEPSEEK_VISION_MODEL', 'DEEPSEEK_BASE_URL'])
+    { const v = (e[k] ?? process.env[k] ?? '').trim(); if (v) out[k] = v; }   // 空值不传，交给默认值
+  return out;
+}
+const aiReady = () => !!aiEnv().DEEPSEEK_API_KEY;
 loadEnv(path.join(__dirname, '.env'));
 
 const PORT = parseInt(process.env.PORT || '10020', 10);
@@ -24,6 +37,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const TOOLS = process.env.ENABLE_TOOLS === '1';
 const TOOLS_LAN = process.env.TOOLS_ALLOW_LAN === '1';
 const TOOLS_DIR = path.join(__dirname, 'tools');
+const noAnsi = t => String(t).replace(/\x1b\[[0-9;]*m/g, '');
 const PYTHON = process.env.PYTHON || path.join(TOOLS_DIR, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 
 const AUDIO_EXT = new Set(['.mp3', '.m4a', '.aac', '.ogg', '.oga', '.opus', '.wav', '.flac', '.webm']);
@@ -201,7 +215,7 @@ function runNext() {
   if (!fs.existsSync(PYTHON)) { job.status = 'failed'; job.log.push('Environnement Python introuvable : ' + PYTHON + ' (lancez tools/setup.bat)'); return runNext(); }
   job.status = 'running';
   job.started = Date.now();
-  const p = spawn(PYTHON, ['-u', ...job.args], { cwd: TOOLS_DIR, env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' } });
+  const p = spawn(PYTHON, ['-u', ...job.args], { cwd: TOOLS_DIR, env: { ...process.env, ...aiEnv(), PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' } });
   job.proc = p;
   let buf = '';
   const onData = d => {
@@ -209,7 +223,7 @@ function runNext() {
     const lines = buf.split(/\r?\n|\r/); buf = lines.pop();
     for (const l of lines) {
       if (!l.trim() || /warn/i.test(l)) continue;
-      job.log.push(l);
+      job.log.push(noAnsi(l));
       if (job.log.length > 200) job.log.shift();
       const m = l.match(/^\[(\d+)\/(\d+)\]/); if (m) job.progress = `${m[1]}/${m[2]}`;
     }
@@ -227,12 +241,157 @@ function runNext() {
 const jobView = j => ({ id: j.id, label: j.label, dir: j.dir, status: j.status, progress: j.progress,
   last: j.log.slice(-3), started: j.started, ended: j.ended });
 
-function readBody(req) {
+function readBody(req, limit = 4e6) {
   return new Promise((resolve, reject) => {
     const chunks = []; let n = 0;
-    req.on('data', c => { chunks.push(c); n += c.length; if (n > 4e6) req.destroy(); });
+    req.on('data', c => { chunks.push(c); n += c.length; if (n > limit) req.destroy(); });
     req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (e) { reject(e); } });
   });
+}
+
+// ---------- 双语阅读（电脑版）：文档库在 MEDIA_DIR/.library/<id>/ ----------
+const LIB_DIR = path.join(MEDIA_DIR, '.library');
+const VOICES = {
+  fr: { voice: process.env.PIPER_VOICE || 'fr_FR-tom-medium', speaker: process.env.PIPER_SPEAKER || null },
+  en: { voice: process.env.PIPER_VOICE_EN || 'en_GB-alan-medium', speaker: null },
+};
+const libDoc = id => /^[0-9a-f]{10}$/.test(id) ? path.join(LIB_DIR, id) : null;
+const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
+const exportName = t => String(t).replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ').trim().replace(/\.+$/, '').slice(0, 80) || 'texte';
+
+function queuePy(label, dir, args) {
+  const job = { id: ++jobSeq, label, dir, args, status: 'queued', log: [], progress: '', created: Date.now() };
+  jobs.push(job);
+  runNext();
+  return job;
+}
+function libStatus(id) {
+  const j = [...jobs].reverse().find(x => x.lib === id);
+  return j ? { status: j.status, progress: j.progress, kind: j.libKind, last: j.log.slice(-1)[0] || '' } : null;
+}
+function libList() {
+  if (!fs.existsSync(LIB_DIR)) return [];
+  return fs.readdirSync(LIB_DIR).filter(id => libDoc(id) && fs.existsSync(path.join(LIB_DIR, id, 'meta.json')))
+    .map(id => ({ id, ...readJSON(path.join(LIB_DIR, id, 'meta.json'), {}), ready: fs.existsSync(path.join(LIB_DIR, id, 'doc.json')), job: libStatus(id) }))
+    .sort((a, b) => b.created - a.created);
+}
+const engineOf = e => (e === 'local' || !aiReady()) ? 'local' : 'ai';
+function libBuild(id, engine) {
+  const job = queuePy(`Lecture · ${readJSON(path.join(LIB_DIR, id, 'meta.json'), {}).title}`, null, ['library.py', 'build', libDoc(id), '--engine', engineOf(engine)]);
+  Object.assign(job, { lib: id, libKind: 'build' });
+}
+
+// ---------- 收件箱 books/：一个文件或一个子文件夹 = 一篇文章 ----------
+const BOOKS_DIR = path.resolve(MEDIA_DIR, process.env.BOOKS_DIR || 'books');
+const BOOKS_DONE = path.join(BOOKS_DIR, '_traité');
+const INBOX_EXT = /\.(jpe?g|png|webp|bmp|tiff?|heic|txt|md)$/i;
+function booksPending() {
+  if (!fs.existsSync(BOOKS_DIR)) return [];
+  const busy = new Set(jobs.filter(j => j.inbox && (j.status === 'queued' || j.status === 'running')).map(j => j.inbox));
+  return fs.readdirSync(BOOKS_DIR, { withFileTypes: true })
+    .filter(d => !d.name.startsWith('.') && !d.name.startsWith('_') && (d.isDirectory()
+      ? fs.readdirSync(path.join(BOOKS_DIR, d.name)).some(f => INBOX_EXT.test(f)) : INBOX_EXT.test(d.name)))
+    .map(d => ({ name: d.name, dir: d.isDirectory(), busy: busy.has(path.join(BOOKS_DIR, d.name)) }))
+    .sort((a, b) => collator.compare(a.name, b.name));
+}
+function booksProcess(engine) {
+  const todo = booksPending().filter(x => !x.busy);
+  for (const it of todo) {
+    const id = require('crypto').randomBytes(5).toString('hex'), dir = libDoc(id), item = path.join(BOOKS_DIR, it.name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ title: it.name.replace(/\.[^.]+$/, ''), lang: 'en', created: Date.now(), source: 'books/' + it.name }));
+    const job = queuePy(`Boîte · ${it.name}`, null, ['library.py', 'ingest', dir, item, '--done', BOOKS_DONE, '--engine', engineOf(engine)]);
+    Object.assign(job, { lib: id, libKind: 'build', inbox: item });
+  }
+  return todo.length;
+}
+
+async function handleLibrary(req, res, pathname) {
+  if (!toolsAllowed(req)) { res.writeHead(403); return res.end('tools disabled'); }
+  try {
+    if (pathname === '/api/library' && req.method === 'GET') return sendJSON(res, libList());
+    if (pathname === '/api/ai' && req.method === 'GET') {
+      const c = readJSON(path.join(TOOLS_DIR, 'models', 'deepseek.json'), null), k = aiEnv().DEEPSEEK_API_KEY;
+      return sendJSON(res, { configured: !!k, models: c && k && c.key_tail === k.slice(-4) ? { text: c.text, vision: c.vision } : null });
+    }
+    if (pathname === '/api/ai/check' && req.method === 'POST') {
+      if (!aiReady()) throw new Error('DEEPSEEK_API_KEY manquant dans .env');
+      const out = await new Promise((resolve, reject) => {
+        const p = spawn(PYTHON, ['-u', 'deepseek.py', '--refresh'], { cwd: TOOLS_DIR, env: { ...process.env, ...aiEnv(), PYTHONIOENCODING: 'utf-8' } });
+        let o = '', e = '';
+        p.stdout.on('data', d => o += d); p.stderr.on('data', d => { e += d; if (e.length > 4000) e = e.slice(-4000); });
+        p.on('close', c => c === 0 ? resolve(o) : reject(new Error(noAnsi(e.split('\n').filter(Boolean).slice(-1)[0] || 'échec'))));
+      });
+      const c = JSON.parse(out);
+      return sendJSON(res, { configured: true, models: { text: c.text, vision: c.vision }, all: c.all });
+    }
+    if (pathname === '/api/books' && req.method === 'GET') return sendJSON(res, { dir: path.relative(MEDIA_DIR, BOOKS_DIR) || BOOKS_DIR, items: booksPending(), ai: aiReady() });
+    if (pathname === '/api/books/process' && req.method === 'POST') return sendJSON(res, { queued: booksProcess((await readBody(req)).engine) });
+    if (pathname === '/api/library' && req.method === 'POST') {
+      const b = await readBody(req);
+      const text = String(b.text || '').trim();
+      if (!text) throw new Error('Texte vide');
+      if (text.length > 200000) throw new Error('Texte trop long (200 000 caractères max.)');
+      const lang = b.lang === 'fr' ? 'fr' : 'en';
+      const id = require('crypto').randomBytes(5).toString('hex'), dir = libDoc(id);
+      const title = String(b.title || '').trim().slice(0, 120) || text.split('\n')[0].slice(0, 60);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'source.txt'), text);
+      fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ title, lang, created: Date.now() }));
+      libBuild(id, b.engine);
+      return sendJSON(res, { id });
+    }
+    if (pathname === '/api/ocr' && req.method === 'POST') {
+      const { images, engine } = await readBody(req, 40e6);
+      if (!Array.isArray(images) || !images.length) throw new Error('Aucune image');
+      const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'lyra-ocr-'));
+      try {
+        const files = images.slice(0, 10).map((d, i) => {
+          const m = String(d).match(/^data:image\/(png|jpe?g|webp);base64,(.+)$/);
+          if (!m) throw new Error('Format d’image non pris en charge');
+          const f = path.join(tmp, `${i}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`);
+          fs.writeFileSync(f, Buffer.from(m[2], 'base64'));
+          return f;
+        });
+        const out = await new Promise((resolve, reject) => {
+          const p = spawn(PYTHON, ['-u', 'library.py', 'ocr', ...files, '--engine', engineOf(engine)], { cwd: TOOLS_DIR, env: { ...process.env, ...aiEnv(), PYTHONIOENCODING: 'utf-8' } });
+          let o = '', e = '';
+          p.stdout.on('data', d => o += d); p.stderr.on('data', d => { e += d; if (e.length > 4000) e = e.slice(-4000); });
+          p.on('error', reject);
+          p.on('close', c => c === 0 ? resolve(o) : reject(new Error(noAnsi(e.split('\n').filter(Boolean).slice(-1)[0] || 'OCR échoué'))));
+        });
+        return sendJSON(res, JSON.parse(out.trim().split('\n').pop()));
+      } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+    }
+    const m = pathname.match(/^\/api\/library\/([0-9a-f]{10})(?:\/(export|rebuild|meta))?$/);
+    const dir = m && libDoc(m[1]);
+    if (!dir || !fs.existsSync(dir)) { res.writeHead(404); return res.end(); }
+    if (!m[2] && req.method === 'GET') {
+      return sendJSON(res, { id: m[1], ...readJSON(path.join(dir, 'meta.json'), {}), ...readJSON(path.join(dir, 'doc.json'), {}), job: libStatus(m[1]) });
+    }
+    if (!m[2] && req.method === 'DELETE') { fs.rmSync(dir, { recursive: true, force: true }); return sendJSON(res, { ok: true }); }
+    if (m[2] === 'rebuild' && req.method === 'POST') { libBuild(m[1], (await readBody(req)).engine); return sendJSON(res, { ok: true }); }
+    if (m[2] === 'meta' && req.method === 'POST') {
+      const b = await readBody(req), meta = readJSON(path.join(dir, 'meta.json'), {});
+      if (b.title) meta.title = String(b.title).trim().slice(0, 120);
+      fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta));
+      return sendJSON(res, meta);
+    }
+    if (m[2] === 'export' && req.method === 'POST') {
+      const meta = readJSON(path.join(dir, 'meta.json'), {});
+      if (!fs.existsSync(path.join(dir, 'doc.json'))) throw new Error('Traduction pas encore terminée');
+      const v = VOICES[meta.lang] || VOICES.fr;
+      const folder = 'lectures/' + exportName(meta.title);
+      const args = ['library.py', 'export', dir, path.join(MEDIA_DIR, folder), '--voice', v.voice];
+      if (v.speaker != null) args.push('--speaker', String(v.speaker));
+      const job = queuePy(`Audio · ${meta.title}`, folder, args);
+      Object.assign(job, { lib: m[1], libKind: 'export' });
+      return sendJSON(res, { ok: true, playlist: folder });
+    }
+    res.writeHead(404); res.end();
+  } catch (e) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end(e.message);
+  }
 }
 
 async function handlePodcasts(req, res, pathname) {
@@ -311,6 +470,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/config') return sendJSON(res, { tools: toolsAllowed(req) });
   if (pathname.startsWith('/api/jobs')) return handleJobs(req, res, pathname);
   if (pathname.startsWith('/api/podcasts')) return handlePodcasts(req, res, pathname);
+  if (pathname.startsWith('/api/library') || pathname === '/api/ocr' || pathname.startsWith('/api/ai') || pathname.startsWith('/api/books')) return handleLibrary(req, res, pathname);
   if (pathname.startsWith('/api/phrases')) return handlePhrases(req, res, pathname);
   if (pathname === '/api/say' && req.method === 'POST') return handleSay(req, res);
   if (pathname === '/api/playlists') return sendJSON(res, listPlaylists());

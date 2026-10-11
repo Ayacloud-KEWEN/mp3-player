@@ -88,7 +88,7 @@ def main():
             for p in (split_long(t) if nllb else [t]):
                 pieces.append(p); owner.append(n)
         toks = [tok.convert_ids_to_tokens(tok.encode(t)) for t in pieces]
-        res = tr.translate_batch(toks, max_batch_size=32, beam_size=4, max_decoding_length=400,
+        res = tr.translate_batch(toks, max_batch_size=32, beam_size=4, max_decoding_length=400, disable_unk=True,
                                  target_prefix=prefix * len(toks) if prefix else None)
         parts = [[] for _ in cues]
         for n, r in zip(owner, res):

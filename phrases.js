@@ -175,7 +175,7 @@ module.exports = function createPhrases({ mediaDir, python, toolsDir, voice, spe
     },
     // 查词朗读：按语言选声音，缓存在 .phrases/say/ 下（不随日常句子清理）
     async say(text, lang) {
-      text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+      text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 1000);
       if (!text) throw new Error('Texte vide');
       const v = lang === 'fr' ? { voice, speaker } : voices[lang];
       if (!v) throw new Error('Langue non prise en charge : ' + lang);
