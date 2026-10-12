@@ -307,7 +307,10 @@ function booksProcess(engine) {
 }
 
 async function handleLibrary(req, res, pathname) {
-  if (!toolsAllowed(req)) { res.writeHead(403); return res.end('tools disabled'); }
+  // 只读（文章列表、单篇文章）对所有设备开放，例如在树莓派上用 MacBook 阅读；
+  // 新建、识别、翻译、删除、导出等仍只限开启了工具的电脑本机
+  const readOnly = req.method === 'GET' && (pathname === '/api/library' || /^\/api\/library\/[0-9a-f]{10}$/.test(pathname));
+  if (!readOnly && !toolsAllowed(req)) { res.writeHead(403); return res.end('tools disabled'); }
   try {
     if (pathname === '/api/library' && req.method === 'GET') return sendJSON(res, libList());
     if (pathname === '/api/ai' && req.method === 'GET') {

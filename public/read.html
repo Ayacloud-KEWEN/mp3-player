@@ -65,6 +65,8 @@ aside{border-right:1px solid var(--line);display:flex;flex-direction:column;min-
 .ai .ok{color:var(--gold)} .ai .no{color:var(--accent)}
 .ai button{color:var(--ink2);text-decoration:underline;text-underline-offset:3px;font-size:13px}
 .doc .m .ia{color:var(--gold)}
+body.ro #newBtn,body.ro #inbox,body.ro #aiBox,body.ro #exportBtn,body.ro #retrBtn,body.ro .doc .x{display:none!important}
+body.ro .brand small::after{content:" · LECTURE SEULE"}
 .empty-lib{padding:12px 14px;color:var(--ink3);font-size:15px}
 
 /* ---------- 顶栏 ---------- */
@@ -227,6 +229,7 @@ const enc = p => p.split('/').map(encodeURIComponent).join('/');
 // ---------- 状态 ----------
 let docs = [], doc = null, flat = [], cur = -1, mode = store.get('read.mode', 'orig');
 let reading = false, shadow = false, pollT = null;
+let readonly = false;   // 树莓派等未开启工具的服务：只能阅读与朗读
 const revealed = new Set();
 const audio = new Audio();
 
@@ -234,7 +237,9 @@ const audio = new Audio();
 async function loadLib(){
   try { docs = await api('api/library'); } catch (e) { return denied(); }
   const box = $('lib'); box.innerHTML = '';
-  if (!docs.length) box.innerHTML = '<div class="empty-lib">Aucun texte. Commencez par « Nouveau texte ».</div>';
+  if (!docs.length) box.innerHTML = readonly
+    ? '<div class="empty-lib">Aucun texte. Les articles sont créés sur l’ordinateur puis copiés dans le dossier <code>.library/</code> du serveur.</div>'
+    : '<div class="empty-lib">Aucun texte. Commencez par « Nouveau texte ».</div>';
   docs.forEach(d => {
     const b = document.createElement('button'); b.className = 'doc' + (doc?.id === d.id ? ' cur' : '');
     b.innerHTML = '<div class="t"></div><div class="m"></div><span class="x" title="Supprimer">×</span>';
@@ -247,7 +252,7 @@ async function loadLib(){
     box.appendChild(b);
   });
   if (docs.some(d => d.job && (d.job.status === 'running' || d.job.status === 'queued'))) { clearTimeout(pollT); pollT = setTimeout(refresh, 1500); }
-  loadInbox();
+  if (!readonly) loadInbox();
 }
 
 // ---------- 收件箱与 AI 状态 ----------
@@ -299,6 +304,7 @@ async function refresh(){
   if (doc && !doc.paragraphs) openDoc(doc.id, true);
 }
 async function delDoc(d){
+  if (readonly) return;
   if (!confirm(`Supprimer « ${d.title} » ?`)) return;
   await api('api/library/' + d.id, { method:'DELETE' });
   if (doc?.id === d.id) { doc = null; showImport(); }
@@ -464,6 +470,7 @@ $('modes').onclick = e => {
   if (doc?.paragraphs) render();
 };
 $('title').ondblclick = async () => {
+  if (readonly) return;
   const t = prompt('Titre :', doc.title); if (!t?.trim()) return;
   await api(`api/library/${doc.id}/meta`, { method:'POST', body: JSON.stringify({ title: t.trim() }) });
   doc.title = t.trim(); $('title').textContent = doc.title; loadLib();
@@ -556,6 +563,7 @@ function guessLang(t){
 }
 function showImport(){
   stopReading(); doc = null; $('bar').hidden = true; $('kbd').hidden = true; closePop();
+  if (readonly) { $('view').innerHTML = '<div class="status"><b>LECTURE SEULE</b>Choisissez un texte dans la liste.</div>'; return; }
   document.title = 'Lyra · Lecture';
   $('view').innerHTML = `<div class="imp">
     <h2>NOUVEAU TEXTE</h2>
@@ -657,11 +665,14 @@ $('newBtn').onclick = showImport;
 // ---------- 启动 ----------
 (async () => {
   const cfg = await api('api/config').catch(() => ({}));
-  if (!cfg.tools) return denied();
-  await loadAI();
+  readonly = !cfg.tools;
+  document.body.classList.toggle('ro', readonly);
+  if (!readonly) await loadAI();
   await loadLib();
   const last = store.get('read.last', null);
-  if (last && docs.some(d => d.id === last)) openDoc(last); else showImport();
+  if (last && docs.some(d => d.id === last)) openDoc(last);
+  else if (readonly && docs.length) openDoc(docs[0].id);
+  else showImport();
 })();
 </script>
 </body>

@@ -49,6 +49,11 @@ WantedBy=multi-user.target
 - 「⤓ Playlist audio」：整篇合成为 `lectures/<标题>/` 下的 MP3 + 原文字幕 + 中文字幕，拷到树莓派后手机即可边听边看
 - 键盘：↑↓ 上一句/下一句，空格 朗读/暂停，T 显示译文，Esc 关闭查词
 
+### 在其他设备上阅读（只读，例如 MacBook）
+树莓派等未开启工具的服务会以「只读」模式提供阅读页：可阅读、朗读、查词，不能新建 / 翻译 / 删除。
+1. 把电脑上的文档库同步到树莓派：`scp -r .library fdcaptain@kevin:/mnt/ssd/audio/`
+2. 浏览器打开 `http://树莓派IP:10020/read.html`（或 Tailscale 的 `https://….ts.net:10021/read.html`）
+
 ### DeepSeek 识别与翻译、收件箱 books/
 - 在 `.env` 填 `DEEPSEEK_API_KEY=`（见 `.env.example`），阅读页左下角「IA」点「Vérifier」：自动选择账号可用的文字 / 图片模型
 - 把文章照片或 .txt 放进 `books/`（一个子文件夹 = 一篇多页文章），阅读页左侧「BOÎTE」点「Traiter maintenant」：
