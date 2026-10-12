@@ -41,7 +41,7 @@ WantedBy=multi-user.target
 
 ## 双语阅读（电脑版）
 电脑上打开 `http://localhost:10020/read.html`（或设置 ☰ → Outils →「📖 Lecture bilingue」）：
-- 「+ Nouveau texte」：粘贴英语/法语文字、拖入 .txt，或拍照/截图（拖入、选择或 Ctrl+V 粘贴）自动识别文字（EasyOCR）。识别后可先修改再创建
+- 「+ Nouveau texte」：粘贴英语/法语文字、拖入 .txt 或 PDF（含扫描版：有文字层直接提取，扫描页逐页识别），或拍照/截图（拖入、选择或 Ctrl+V 粘贴）自动识别文字（EasyOCR）。识别后可先修改再创建
 - 自动分句并译成中文（NLLB 1.3B，离线）
 - 三种显示：Côte à côte（左右对照）/ Alterné（逐句交替）/ Original seul（只看原文，点「文」或按 T 显示译文）
 - 朗读：句子旁 ▶ 朗读单句；「▶ Lire」连续朗读并高亮；「Répéter」每句后停顿跟读；可选 0.8/1.0/1.2 倍速

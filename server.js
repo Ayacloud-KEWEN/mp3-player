@@ -284,7 +284,7 @@ function libBuild(id, engine) {
 // ---------- 收件箱 books/：一个文件或一个子文件夹 = 一篇文章 ----------
 const BOOKS_DIR = path.resolve(MEDIA_DIR, process.env.BOOKS_DIR || 'books');
 const BOOKS_DONE = path.join(BOOKS_DIR, '_traité');
-const INBOX_EXT = /\.(jpe?g|png|webp|bmp|tiff?|heic|txt|md)$/i;
+const INBOX_EXT = /\.(jpe?g|png|webp|bmp|tiff?|heic|pdf|txt|md)$/i;
 function booksPending() {
   if (!fs.existsSync(BOOKS_DIR)) return [];
   const busy = new Set(jobs.filter(j => j.inbox && (j.status === 'queued' || j.status === 'running')).map(j => j.inbox));
@@ -347,10 +347,11 @@ async function handleLibrary(req, res, pathname) {
       const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'lyra-ocr-'));
       try {
         const files = images.slice(0, 10).map((d, i) => {
-          const m = String(d).match(/^data:image\/(png|jpe?g|webp);base64,(.+)$/);
+          const m = String(d).match(/^data:(?:image\/(png|jpe?g|webp)|application\/(pdf));base64,(.+)$/);
           if (!m) throw new Error('Format d’image non pris en charge');
-          const f = path.join(tmp, `${i}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`);
-          fs.writeFileSync(f, Buffer.from(m[2], 'base64'));
+          const ext = m[2] || (m[1] === 'jpeg' ? 'jpg' : m[1]);
+          const f = path.join(tmp, `${i}.${ext}`);
+          fs.writeFileSync(f, Buffer.from(m[3], 'base64'));
           return f;
         });
         const out = await new Promise((resolve, reject) => {

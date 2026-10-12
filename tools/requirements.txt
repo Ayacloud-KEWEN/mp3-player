@@ -8,3 +8,4 @@ sentencepiece==0.2.2
 sacremoses==0.2.0
 imageio-ffmpeg==0.6.0
 easyocr==1.7.2
+pymupdf==1.28.2

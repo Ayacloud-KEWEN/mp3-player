@@ -15,7 +15,56 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ---------- 文字识别 ----------
 def ocr(paths, engine="local"):
-    """返回 {"text", "title", "lang"}。ai：DeepSeek 视觉模型；不可用时退回本地 EasyOCR。"""
+    """图片和 PDF → {"text", "title", "lang"}，按顺序拼接。
+    PDF：有文字层的页直接取文字；扫描页渲染成图片再识别（DeepSeek 每次最多 4 页）。"""
+    import tempfile
+    segs = []      # 按顺序：("text", 文字) 或 ("img", 图片路径)
+    tmp = tempfile.mkdtemp(prefix="lyra-pdf-")
+    try:
+        for p in paths:
+            if p.lower().endswith(".pdf"):
+                segs += pdf_segments(p, tmp)
+            else:
+                segs.append(("img", p))
+        out, title, lang = [], "", ""
+        k, total = 0, sum(1 for s in segs if s[0] == "img")
+        i = 0
+        while i < len(segs):
+            if segs[i][0] == "text":
+                out.append(segs[i][1]); i += 1; continue
+            run = []
+            while i < len(segs) and segs[i][0] == "img" and len(run) < (4 if engine == "ai" else 50):
+                run.append(segs[i][1]); i += 1
+            k += len(run)
+            if total > 1:
+                print(f"Pages {k}/{total}", flush=True)
+            r = ocr_images(run, engine)
+            out.append(r["text"]); title = title or r["title"]; lang = lang or r["lang"]
+        return {"text": "\n\n".join(t for t in out if t.strip()), "title": title, "lang": lang}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def pdf_segments(path, tmp):
+    import pymupdf
+    segs = []
+    with pymupdf.open(path) as doc:
+        print(f"PDF : {doc.page_count} page(s)", flush=True)
+        for n, page in enumerate(doc):
+            # 文字层：按块取段落，块内换行合并（行尾连字符断词也接回去）
+            blocks = [b[4] for b in page.get_text("blocks") if b[6] == 0]
+            text = "\n\n".join(re.sub(r"\s*\n\s*", " ", re.sub(r"-\n(?=[a-zà-ÿ])", "", b)).strip() for b in blocks if b.strip())
+            if len(text) >= 150:
+                segs.append(("text", text))
+            else:   # 扫描页：渲染为 200 dpi 图片
+                f = os.path.join(tmp, f"p{n:04d}.png")
+                page.get_pixmap(dpi=200).save(f)
+                segs.append(("img", f))
+    return segs
+
+
+def ocr_images(paths, engine="local"):
+    """图片 → {"text", "title", "lang"}。ai：DeepSeek 视觉模型；不可用时退回本地 EasyOCR。"""
     if engine == "ai":
         import deepseek
         try:
@@ -179,7 +228,7 @@ def local_translate(flat, src):
 
 
 # ---------- 收件箱：一个文件或一个文件夹 = 一篇文章 ----------
-IMG = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".heic")
+IMG = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".heic", ".pdf")
 
 
 def ingest(docdir, item, done, engine):
